@@ -1,0 +1,362 @@
+const express = require('express');
+const router = express.Router();
+
+const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
+const OLLAMA_URL = `${OLLAMA_HOST}/api/chat`;
+const MODEL = process.env.OLLAMA_MODEL || 'qwen3-vl:8b-instruct';
+
+async function callOllama(messages, systemPrompt) {
+  const msgs = systemPrompt
+    ? [{ role: 'system', content: systemPrompt }, ...messages]
+    : messages;
+
+  const response = await fetch(OLLAMA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, messages: msgs, stream: false }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Ollama error ${response.status}: ${text}`);
+  }
+  const data = await response.json();
+  let text = data.message?.content || '';
+  // Strip Qwen3 chain-of-thought thinking blocks
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  return text;
+}
+
+// Chat for task input
+router.post('/chat', async (req, res) => {
+  const { messages } = req.body;
+  const today = new Date().toISOString().split('T')[0];
+
+  const systemPrompt = `你是一个专业的任务管理助手，帮助用户记录和管理工作任务。
+
+你的职责：
+1. 理解用户输入的任务描述
+2. 识别任务字段：标题、描述、截止日期、预估工时、重要程度
+3. 对缺失的必填字段逐一礼貌追问，每次只追问一个字段
+4. 当所有必填字段确认后，返回结构化任务数据
+
+必填字段：标题、截止日期（YYYY-MM-DD格式）、预估工时（小时数）、重要程度（high/mid/low）
+
+重要程度映射：高/重要 = high，中/一般 = mid，低/不重要 = low
+
+当所有必填字段确认后，在回复末尾单独一行输出：
+TASK_READY:{"title":"任务标题","description":"描述（可为空字符串）","deadline":"YYYY-MM-DD","estimated_hours":数字,"importance":"high/mid/low","tags":[]}
+
+今天日期：${today}
+
+规则：
+- 始终用中文回复，语气专业友好
+- 每次只追问一个缺失字段
+- TASK_READY 标记只在所有字段都确认后才输出
+- 不要在 TASK_READY 前后有多余内容，确保 JSON 格式正确`;
+
+  try {
+    const content = await callOllama(messages, systemPrompt);
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Prioritize tasks
+router.post('/prioritize', async (req, res) => {
+  const { tasks } = req.body;
+  const today = new Date().toISOString().split('T')[0];
+
+  const systemPrompt = `你是任务优先级专家。今天日期：${today}
+
+优先级规则：
+- P1: 紧急且重要（截止在3天内 且 importance=high）
+- P2: 重要不紧急（importance=high 且 截止3天以上）或（截止在7天内 且 importance=mid）
+- P3: 紧急不重要（截止在3天内 且 importance!=high）
+- P4: 其他情况
+
+priority_score（0-100）计算：
+- 截止紧迫度（0-40分）：今天=40, 明天=35, 2天=30, 3天=25, 7天=18, 14天=10, 更远=5, 无截止=0
+- 重要程度（0-40分）：high=40, mid=25, low=10
+- 工时效率（0-20分）：≤1h=20, ≤2h=16, ≤4h=12, ≤8h=8, >8h=4
+
+只返回JSON数组，不要其他任何内容：
+[{"id":任务id,"priority_score":分数,"priority_level":"P1/P2/P3/P4"}]`;
+
+  try {
+    const taskList = tasks
+      .map(t => `ID:${t.id} 标题:${t.title} 截止:${t.deadline || '无'} 重要程度:${t.importance} 预估工时:${t.estimated_hours}h`)
+      .join('\n');
+
+    const content = await callOllama(
+      [{ role: 'user', content: `请为以下任务计算优先级：\n${taskList}` }],
+      systemPrompt
+    );
+
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error('AI 返回格式错误，未找到 JSON 数组');
+    const priorities = JSON.parse(jsonMatch[0]);
+    res.json({ priorities });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Morning briefing
+router.post('/morning', async (req, res) => {
+  const { tasks, date } = req.body;
+
+  const systemPrompt = `你是高效工作助手，生成今日工作计划早报。
+
+输出要求：纯文本，结构化，用数字编号和缩进，禁止使用任何 Markdown 符号（##、**、-、| 等）。
+
+按以下格式输出：
+
+今日工作计划  ${date}
+
+一、今日必处理任务（截止今天或已逾期，或进行中）
+   1. [任务名]  截止：[日期]  预估：[xh]  优先级：[Px]
+   2. ...
+
+二、本周需推进任务（截止本周内，P1/P2）
+   1. [任务名]  截止：[日期]  预估：[xh]
+   2. ...
+
+三、远期任务（仅提示，暂不安排）
+   [任务名]（截止：[日期]）；[任务名]（截止：[日期]）
+
+四、今日工作建议
+   1. [具体建议，结合任务紧迫度]
+   2. [时间分配建议]
+   3. [风险提示]
+
+今日预估总工时：[仅统计一、二中的任务总工时] 小时
+
+语气积极专业，用中文。若某分类无任务则写"无"。`;
+
+  try {
+    const taskList = tasks
+      .map(t => `[${t.priority_level || 'P4'}] ${t.title} | 截止:${t.deadline || '无'} | ${t.estimated_hours}h | 重要度:${t.importance}`)
+      .join('\n');
+
+    const content = await callOllama(
+      [{ role: 'user', content: `今日待完成任务：\n${taskList || '暂无任务'}\n\n请生成今日工作早报。` }],
+      systemPrompt
+    );
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper: format task_logs into a readable context block
+function formatTaskLogContext(taskLogs, tasks) {
+  if (!taskLogs || taskLogs.length === 0) return '';
+  const typeLabel = { manual: '手动记录', evening_review: '晚间复盘', status_change: '状态变更' };
+  const byTask = {};
+  taskLogs.forEach(l => {
+    const task = tasks.find(t => t.id === l.task_id);
+    const key = task?.title || `任务${l.task_id}`;
+    if (!byTask[key]) byTask[key] = [];
+    byTask[key].push(`   ${l.date} [${typeLabel[l.type] || l.type}] ${l.content}`);
+  });
+  return '\n\n各任务近期日志记录：\n' +
+    Object.entries(byTask)
+      .map(([title, entries]) => `${title}：\n${entries.join('\n')}`)
+      .join('\n\n');
+}
+
+// Daily report
+router.post('/daily-report', async (req, res) => {
+  const { logs, tasks, date, taskLogs } = req.body;
+
+  const systemPrompt = `你是专业工作汇报助手，生成适合汇报给领导的日报。
+
+输出要求：纯文本，结构化，用数字编号和缩进，禁止使用任何 Markdown 符号（##、**、-）。各任务进展必须用表格形式，列之间用 | 分隔。
+
+按以下格式严格输出：
+
+日报  ${date}
+
+一、今日工作总结
+   [两到三句话概述今日整体完成情况和进度]
+
+二、各任务进展
+   任务名称 | 完成度 | 进展说明 | 状态
+   -------- | ------ | -------- | ----
+   [任务1]  | [xx%]  | [说明]   | [进行中/已完成]
+   [任务2]  | [xx%]  | [说明]   | [进行中/已完成]
+
+三、遇到的问题
+   [具体描述，或写：暂无]
+
+四、明日计划
+   1. [任务名]
+   2. [任务名]
+
+用正式中文，适合职场汇报。`;
+
+  try {
+    const logInfo = logs
+      .map(l => {
+        const task = tasks.find(t => t.id === l.task_id);
+        return `任务:${task?.title || '未知'} 完成度:${l.progress_percent}% 备注:${l.note || '无'}`;
+      })
+      .join('\n');
+
+    const pendingTasks = tasks.filter(t => t.status !== 'done').map(t => t.title).join('、');
+    const logContext = formatTaskLogContext(taskLogs, tasks);
+
+    const content = await callOllama(
+      [{ role: 'user', content: `今日工作记录：\n${logInfo || '无记录'}\n\n未完成任务：${pendingTasks || '无'}${logContext}\n\n请生成日报。` }],
+      systemPrompt
+    );
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Weekly report
+router.post('/weekly-report', async (req, res) => {
+  const { tasks, taskLogs, startDate, endDate } = req.body;
+
+  const systemPrompt = `你是专业工作汇报助手，生成周报。
+
+输出要求：纯文本，结构化，用数字编号和缩进，禁止使用任何 Markdown 符号（##、**、-、| 等）。
+
+按以下格式严格输出：
+
+周报  ${startDate} 至 ${endDate}
+
+一、本周工作总结
+   [三到五句话概述本周整体工作情况与主要成果]
+
+二、已完成事项
+   1. [任务名]
+   2. [任务名]
+
+三、进行中事项
+   1. [任务名]（当前进度：xx%，说明：xxx）
+   2. [任务名]（当前进度：xx%，说明：xxx）
+
+四、下周工作计划
+   1. [任务名]（截止：[日期]，优先级：[Px]）
+   2. [任务名]（截止：[日期]，优先级：[Px]）
+
+五、总结与建议
+   [工作反思、经验总结、改进建议]
+
+用正式中文，适合职场汇报。若某分类无内容则写"无"。`;
+
+  try {
+    const taskSummary = tasks
+      .map(t => `${t.title} | 状态:${t.status} | 优先级:${t.priority_level} | 截止:${t.deadline || '无'}`)
+      .join('\n');
+
+    const logContext = formatTaskLogContext(taskLogs, tasks);
+    const content = await callOllama(
+      [{ role: 'user', content: `本周任务情况：\n${taskSummary || '暂无任务'}${logContext}\n\n请生成周报。` }],
+      systemPrompt
+    );
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Monthly report
+router.post('/monthly-report', async (req, res) => {
+  const { tasks, taskLogs, month } = req.body;
+
+  const systemPrompt = `你是专业工作汇报助手，生成月报。
+
+输出要求：纯文本，结构化，用数字编号和缩进，禁止使用任何 Markdown 符号（##、**、-、| 等）。
+
+按以下格式严格输出：
+
+月报  ${month}
+
+一、本月工作总结
+   [三到五句话概述本月整体工作情况与核心成果]
+
+二、重点成果
+   1. [成果描述]
+   2. [成果描述]
+
+三、任务完成统计
+   总任务数：[x] 个
+   已完成：[x] 个（完成率 xx%）
+   进行中：[x] 个
+   P1/P2 高优先级完成情况：[描述]
+
+四、未完成事项
+   1. [任务名]（原因：[说明]）
+   2. [任务名]（原因：[说明]）
+
+五、下月工作计划
+   1. [任务名]（截止：[日期]，优先级：[Px]）
+   2. [任务名]（截止：[日期]，优先级：[Px]）
+
+六、总结与反思
+   [工作亮点、存在的问题、改进方向]
+
+用正式中文，适合职场汇报。若某分类无内容则写"无"。`;
+
+  try {
+    const taskSummary = tasks
+      .map(t => `${t.title} | 状态:${t.status} | 优先级:${t.priority_level} | 截止:${t.deadline || '无'}`)
+      .join('\n');
+
+    const logContext = formatTaskLogContext(taskLogs, tasks);
+    const content = await callOllama(
+      [{ role: 'user', content: `本月任务情况：\n${taskSummary || '暂无任务'}${logContext}\n\n请生成月报。` }],
+      systemPrompt
+    );
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Conflict resolution suggestion
+router.post('/conflict-suggest', async (req, res) => {
+  const { task, conflicts, allTasks } = req.body;
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+  try {
+    const takenDates = [
+      ...new Set(
+        (allTasks || [])
+          .filter((t) => t.deadline && t.status !== 'done')
+          .map((t) => t.deadline)
+      ),
+    ]
+      .sort()
+      .join('、') || '无';
+
+    const prompt = `任务：${task.title}，截止：${task.deadline}，预估：${task.estimated_hours}h，优先级：${task.priority_level || 'P4'}
+
+冲突：
+${(conflicts || []).map((c, i) => `${i + 1}. ${c}`).join('\n')}
+
+其他任务已占用的截止日期：${takenDates}
+今天：${todayStr}
+
+请推荐一个调整方案，严格按以下格式输出两行（不要其他内容）：
+建议日期：YYYY-MM-DD
+建议说明：[一句话说明原因]`;
+
+    const content = await callOllama([{ role: 'user', content: prompt }]);
+    const dateMatch = content.match(/建议日期[：:]\s*(\d{4}-\d{2}-\d{2})/);
+    const suggestedDate = dateMatch ? dateMatch[1] : null;
+    res.json({ suggestion: content, suggestedDate });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+module.exports = router;

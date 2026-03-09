@@ -1,0 +1,19 @@
+{
+  "name": "jira-personal",
+  "version": "1.0.0",
+  "description": "Personal task management with AI",
+  "main": "server.js",
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"server,client\" -c \"yellow,cyan\" \"node server.js\" \"cd client && npm run dev\"",
+    "start": "node server.js",
+    "install:all": "npm install && cd client && npm install"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      # 连接宿主机上已有的 Ollama 实例
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen3-vl:8b-instruct
+    volumes:
+      # Persist SQLite database to host
+      - ./data:/app/data
+    restart: unless-stopped
+    extra_hosts:
+      # 确保 host.docker.internal 在 Linux 上也可用（macOS/Windows 默认已有）
+      - "host.docker.internal:host-gateway"

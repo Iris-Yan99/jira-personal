@@ -1,0 +1,46 @@
+# Development compose — hot reload for both frontend and backend.
+# Usage: docker compose -f docker-compose.dev.yml up
+#
+# Frontend (Vite dev server):  http://localhost:5173  ← use this in browser
+# Backend  (Express API):      http://localhost:3001
+# Ollama:                       http://localhost:11434
+
+services:
+  app:
+    image: node:24-alpine
+    working_dir: /app
+    # Install deps then start both servers via concurrently
+    command: >
+      sh -c "apk add --no-cache python3 make g++ &&
+             npm install &&
+             cd client && npm install && cd .. &&
+             npm run dev"
+    ports:
+      - "3001:3001"   # Express API
+      - "5173:5173"   # Vite dev server (open this in browser)
+    environment:
+      - NODE_ENV=development
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=qwen3-vl:8b-instruct
+    volumes:
+      # Mount entire source for hot reload
+      - .:/app
+      # Isolate node_modules inside container (prevent host/container conflicts)
+      - dev_backend_modules:/app/node_modules
+      - dev_client_modules:/app/client/node_modules
+      # Persist database
+      - ./data:/app/data
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  ollama_data:
+  dev_backend_modules:
+  dev_client_modules:

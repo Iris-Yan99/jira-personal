@@ -1,0 +1,34 @@
+# Dependencies (installed fresh inside image)
+node_modules
+client/node_modules
+
+# Frontend build output (built inside image)
+client/dist
+
+# Database (mounted as volume at runtime)
+data/
+
+# Environment / secrets
+.env
+.env.*
+
+# Dev / CI artifacts
+.git
+.gitignore
+*.log
+npm-debug.log*
+
+# Docker files themselves (avoid recursive context bloat)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# macOS / editor noise
+.DS_Store
+.vscode
+.idea
+*.swp
+*.swo
+
+# Claude memory
+.claude/
