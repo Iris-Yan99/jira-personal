@@ -34,30 +34,68 @@ router.post('/chat', async (req, res) => {
 
   const systemPrompt = `你是一个专业的任务管理助手，帮助用户记录和管理工作任务。
 
-你的职责：
-1. 理解用户输入的任务描述
-2. 识别任务字段：标题、描述、截止日期、预估工时、重要程度
-3. 对缺失的必填字段逐一礼貌追问，每次只追问一个字段
-4. 当所有必填字段确认后，返回结构化任务数据
+你的职责：从用户描述中一次性提取所有任务字段，立即输出 TASK_READY，不要逐一追问。
 
-必填字段：标题、截止日期（YYYY-MM-DD格式）、预估工时（小时数）、重要程度（high/mid/low）
-
-重要程度映射：高/重要 = high，中/一般 = mid，低/不重要 = low
-
-当所有必填字段确认后，在回复末尾单独一行输出：
-TASK_READY:{"title":"任务标题","description":"描述（可为空字符串）","deadline":"YYYY-MM-DD","estimated_hours":数字,"importance":"high/mid/low","tags":[]}
+字段提取规则：
+- title（必填）：提取任务标题，不超过 30 字
+- deadline（必填）：
+  - 若描述含明确日期 → 转为 YYYY-MM-DD
+  - 若含相对时间："明天"→+1天，"后天"→+2天，"下周"→+7天，"本周五"→本周五日期，"月底"→本月最后一天
+  - 若完全无时间信息 → 输出 null
+- estimated_hours（选填）：从描述提取小时数，如"半天"→4，"一小时"→1，"两小时"→2；无则默认 2
+- importance（选填）：
+  - 含"重要/紧急/关键/优先/必须/很重要" → high
+  - 含"随便/不急/低优/无所谓/不重要" → low
+  - 其他 → mid
+- description（选填）：用户原话补充，可为空字符串
+- tags（选填）：数组，默认 []
 
 今天日期：${today}
 
-规则：
+输出规则：
+- 先输出一句简短确认（不超过 20 字），然后在末尾单独一行输出 TASK_READY
+- deadline 为 null 时也必须输出该字段，不要省略
 - 始终用中文回复，语气专业友好
-- 每次只追问一个缺失字段
-- TASK_READY 标记只在所有字段都确认后才输出
-- 不要在 TASK_READY 前后有多余内容，确保 JSON 格式正确`;
+- TASK_READY 格式（末尾单独一行）：
+TASK_READY:{"title":"任务标题","description":"描述（可为空字符串）","deadline":"YYYY-MM-DD或null","estimated_hours":数字,"importance":"high/mid/low","tags":[]}`;
 
   try {
     const content = await callOllama(messages, systemPrompt);
     res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Single-shot task extraction for quick create
+router.post('/extract-task', async (req, res) => {
+  const { description } = req.body;
+  if (!description?.trim()) {
+    return res.status(400).json({ error: '描述不能为空' });
+  }
+  const today = new Date().toISOString().split('T')[0];
+
+  const prompt = `从以下描述中提取任务字段，今天日期：${today}
+
+描述：${description}
+
+提取规则：
+- title：任务标题，不超过 30 字
+- deadline：含日期/相对时间→转 YYYY-MM-DD；"明天"→+1天，"后天"→+2天，"下周"→+7天，"本周五"→本周五日期，"月底"→本月最后一天；无时间信息→null
+- estimated_hours：提取小时数，无则默认 2
+- importance：含"重要/紧急/关键/优先/必须/很重要"→high；含"随便/不急/低优/无所谓/不重要"→low；其他→mid
+- description：补充说明，可为空字符串
+- tags：数组，默认 []
+
+只输出 JSON，不要其他任何内容：
+{"title":"...","description":"...","deadline":"YYYY-MM-DD或null","estimated_hours":数字,"importance":"high/mid/low","tags":[]}`;
+
+  try {
+    const content = await callOllama([{ role: 'user', content: prompt }]);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('AI 返回格式错误');
+    const task = JSON.parse(jsonMatch[0]);
+    res.json(task);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
