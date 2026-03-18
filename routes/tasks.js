@@ -8,6 +8,7 @@ router.get('/', (req, res) => {
       COALESCE(
         (SELECT l.progress_percent FROM daily_logs l
          WHERE l.task_id = t.id ORDER BY l.created_at DESC LIMIT 1),
+        t.progress_percent,
         0
       ) AS progress_percent
     FROM tasks t

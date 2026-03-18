@@ -112,7 +112,14 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
   }
 
   const set = (key, val) => {
-    setForm((f) => ({ ...f, [key]: val }))
+    setForm((f) => {
+      const next = { ...f, [key]: val }
+      // Auto-set status to in_progress when progress > 0 and task is still todo
+      if (key === 'progress_percent' && val > 0 && f.status === 'todo') {
+        next.status = 'in_progress'
+      }
+      return next
+    })
     // Clear conflict warning if deadline or hours change
     if (key === 'deadline' || key === 'estimated_hours' || key === 'priority_level') {
       setConflict(null)
@@ -121,38 +128,41 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
 
   const doSave = async () => {
     setSaving(true)
-    if (form.status !== task.status) {
-      await api.createTaskLog({
-        task_id: task.id,
-        date: localDateStr(),
-        type: 'status_change',
-        content: `状态从「${STATUS_LABEL[task.status]}」变更为「${STATUS_LABEL[form.status]}」`,
-      })
-    }
-    // Sync pending dependency changes
-    const addPromises = [...pendingAdd.current].map(id =>
-      api.addDependency(task.id, id).catch(e => {
-        if (e.message.includes('Circular')) alert('無法添加前置任務：存在循環依賴')
-      })
-    )
-    const removePromises = [...pendingRemove.current].map(id =>
-      api.removeDependency(task.id, id)
-    )
-    await Promise.all([...addPromises, ...removePromises])
-    pendingAdd.current.clear()
-    pendingRemove.current.clear()
+    try {
+      if (form.status !== task.status) {
+        await api.createTaskLog({
+          task_id: task.id,
+          date: localDateStr(),
+          type: 'status_change',
+          content: `状态从「${STATUS_LABEL[task.status]}」变更为「${STATUS_LABEL[form.status]}」`,
+        })
+      }
+      // Sync pending dependency changes
+      const addPromises = [...pendingAdd.current].map(id =>
+        api.addDependency(task.id, id).catch(e => {
+          if (e.message.includes('Circular')) alert('無法添加前置任務：存在循環依賴')
+        })
+      )
+      const removePromises = [...pendingRemove.current].map(id =>
+        api.removeDependency(task.id, id)
+      )
+      await Promise.all([...addPromises, ...removePromises])
+      pendingAdd.current.clear()
+      pendingRemove.current.clear()
 
-    await onSave({
-      ...form,
-      title: form.title.trim(),
-      estimated_hours: parseFloat(form.estimated_hours) || 1,
-      tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
-      parent_id: form.parent_id || null,
-      clear_parent: form.parent_id === null,
-      progress_note: progressNote,
-      coordination_note: coordinationNote,
-    })
-    setSaving(false)
+      await onSave({
+        ...form,
+        title: form.title.trim(),
+        estimated_hours: parseFloat(form.estimated_hours) || 1,
+        tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+        parent_id: form.parent_id || null,
+        clear_parent: form.parent_id === null,
+        progress_note: progressNote,
+        coordination_note: coordinationNote,
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleSave = async () => {
