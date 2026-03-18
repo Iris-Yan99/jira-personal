@@ -12,6 +12,7 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/task-logs', require('./routes/task-logs'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/members', require('./routes/members'));
+app.use('/api/dependencies', require('./routes/dependencies'));
 
 // Serve frontend static files in production
 if (process.env.NODE_ENV === 'production') {

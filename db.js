@@ -81,6 +81,18 @@ function runMigrations() {
     db.pragma('user_version = 2');
     console.log('[DB] Migration v2 applied: assignee, progress_note, coordination_note, members table');
   }
+
+  if (version < 3) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS task_dependencies (
+        task_id       INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        depends_on_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        PRIMARY KEY (task_id, depends_on_id)
+      );
+    `);
+    db.pragma('user_version = 3');
+    console.log('[DB] Migration v3 applied: task_dependencies table');
+  }
 }
 
 runMigrations();

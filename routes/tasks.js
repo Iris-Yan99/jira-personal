@@ -13,7 +13,35 @@ router.get('/', (req, res) => {
     FROM tasks t
     ORDER BY t.priority_score DESC, t.created_at DESC
   `).all();
-  res.json(tasks.map(t => ({ ...t, tags: JSON.parse(t.tags || '[]') })));
+
+  // Enrich each task with its blockers (depends_on tasks)
+  const depRows = db.prepare(`
+    SELECT
+      td.task_id,
+      t.id        AS blocker_id,
+      t.title     AS blocker_title,
+      t.status    AS blocker_status,
+      t.deadline  AS blocker_deadline
+    FROM task_dependencies td
+    JOIN tasks t ON t.id = td.depends_on_id
+  `).all();
+
+  const blockersByTask = {};
+  depRows.forEach(row => {
+    if (!blockersByTask[row.task_id]) blockersByTask[row.task_id] = [];
+    blockersByTask[row.task_id].push({
+      id: row.blocker_id,
+      title: row.blocker_title,
+      status: row.blocker_status,
+      deadline: row.blocker_deadline,
+    });
+  });
+
+  res.json(tasks.map(t => ({
+    ...t,
+    tags: JSON.parse(t.tags || '[]'),
+    blockers: blockersByTask[t.id] || [],
+  })));
 });
 
 router.get('/:id', (req, res) => {
