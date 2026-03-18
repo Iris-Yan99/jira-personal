@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { api } from '../utils/api'
 import { detectConflicts } from '../utils/conflicts'
 import { buildTree, getDescendantIds } from '../utils/taskTree'
@@ -62,6 +62,27 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     api.getMembers().then(setMembers).catch(() => {})
   }, [])
 
+  // ── Dependency state ─────────────────────────────────────────
+  const [localBlockers, setLocalBlockers] = useState(task.blockers || [])
+  const pendingAdd = useRef(new Set())
+  const pendingRemove = useRef(new Set())
+
+  const addBlocker = (blockerId) => {
+    const blocker = tasks.find(t => t.id === blockerId)
+    if (!blocker || localBlockers.find(b => b.id === blockerId)) return
+    setLocalBlockers(prev => [...prev, {
+      id: blocker.id, title: blocker.title, status: blocker.status, deadline: blocker.deadline,
+    }])
+    pendingAdd.current.add(blockerId)
+    pendingRemove.current.delete(blockerId)
+  }
+
+  const removeBlocker = (blockerId) => {
+    setLocalBlockers(prev => prev.filter(b => b.id !== blockerId))
+    pendingRemove.current.add(blockerId)
+    pendingAdd.current.delete(blockerId)
+  }
+
   const { childrenMap } = useMemo(() => buildTree(tasks), [tasks])
   const descendantIds = useMemo(() => getDescendantIds(task.id, childrenMap), [task.id, childrenMap])
   const [saving, setSaving] = useState(false)
@@ -108,6 +129,19 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
         content: `状态从「${STATUS_LABEL[task.status]}」变更为「${STATUS_LABEL[form.status]}」`,
       })
     }
+    // Sync pending dependency changes
+    const addPromises = [...pendingAdd.current].map(id =>
+      api.addDependency(task.id, id).catch(e => {
+        if (e.message.includes('Circular')) alert('無法添加前置任務：存在循環依賴')
+      })
+    )
+    const removePromises = [...pendingRemove.current].map(id =>
+      api.removeDependency(task.id, id)
+    )
+    await Promise.all([...addPromises, ...removePromises])
+    pendingAdd.current.clear()
+    pendingRemove.current.clear()
+
     await onSave({
       ...form,
       title: form.title.trim(),
@@ -342,6 +376,51 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                   </div>
                 </Field>
               )}
+
+              <Field label="前置任務（Blocked By）">
+                <div className="space-y-2">
+                  {localBlockers.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {localBlockers.map(b => (
+                        <span
+                          key={b.id}
+                          className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border ${
+                            b.status === 'done'
+                              ? 'bg-green-50 border-green-200 text-green-700'
+                              : 'bg-yellow-50 border-yellow-300 text-yellow-800'
+                          }`}
+                        >
+                          {b.status === 'done' ? '✓' : '⏳'} {b.title}
+                          <button
+                            type="button"
+                            onClick={() => removeBlocker(b.id)}
+                            className="ml-0.5 text-gray-400 hover:text-red-500 font-bold"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <select
+                    value=""
+                    onChange={e => { if (e.target.value) addBlocker(Number(e.target.value)) }}
+                    className={inputCls}
+                  >
+                    <option value="">＋ 添加前置任務...</option>
+                    {tasks
+                      .filter(t =>
+                        t.id !== task.id &&
+                        !descendantIds.has(t.id) &&
+                        !localBlockers.find(b => b.id === t.id)
+                      )
+                      .map(t => (
+                        <option key={t.id} value={t.id}>{t.title}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+              </Field>
 
               {/* Conflict warning */}
               {conflict && (

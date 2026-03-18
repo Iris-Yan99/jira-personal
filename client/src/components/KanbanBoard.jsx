@@ -44,6 +44,17 @@ const PRIORITY_BADGE = {
   P3: 'bg-yellow-400 text-gray-800', P4: 'bg-gray-300 text-gray-700',
 }
 
+function isBlocked(task) {
+  return (task.blockers || []).some(b => b.status !== 'done')
+}
+
+function unlockDate(task) {
+  const incomplete = (task.blockers || []).filter(b => b.status !== 'done')
+  const dates = incomplete.map(b => b.deadline).filter(Boolean)
+  if (dates.length === 0) return null
+  return dates.sort().at(-1) // latest deadline
+}
+
 // ─── TaskTreeNode ────────────────────────────────────────────────────────────
 function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onToggle, onLeafDone, onOpenEdit }) {
   const children = childrenMap[task.id] || []
@@ -59,13 +70,32 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
     : null
   const daysLeft = deadline ? Math.round((deadline - today) / 86400000) : null
   const isOverdue = daysLeft !== null && daysLeft < 0 && task.status !== 'done'
+  const blocked = isBlocked(task)
+  const unlock = unlockDate(task)
 
   return (
     <div className={depth > 0 ? `ml-3 pl-3 border-l-2 ${depthColor}` : ''}>
       <div
-        className={`bg-white rounded-xl border border-gray-100 p-3 mb-2 ${depth === 0 ? 'shadow-sm' : ''} ${!hasChildren ? 'cursor-pointer hover:shadow-md transition-all' : ''}`}
+        className={`bg-white rounded-xl border p-3 mb-2 ${
+          blocked ? 'border-2 border-yellow-400' : 'border-gray-100'
+        } ${depth === 0 ? 'shadow-sm' : ''} ${!hasChildren ? 'cursor-pointer hover:shadow-md transition-all' : ''}`}
         onClick={!hasChildren ? () => onOpenEdit(task) : undefined}
       >
+        {/* Blocked badge */}
+        {blocked && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300 px-2 py-0.5 rounded-full">
+              ⛔ BLOCKED
+            </span>
+            {unlock ? (
+              <span className="text-xs text-yellow-700">解鎖於 {unlock}</span>
+            ) : (
+              <span className="text-xs text-yellow-600">
+                等待 {(task.blockers || []).filter(b => b.status !== 'done').length} 個前置任務
+              </span>
+            )}
+          </div>
+        )}
         {/* Header row */}
         <div className="flex items-start gap-2 mb-2">
           {!hasChildren && (

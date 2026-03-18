@@ -59,4 +59,14 @@ export const api = {
   getMembers: () => request('/members'),
   createMember: (name) => request('/members', json({ name })),
   deleteMember: (id) => request(`/members/${id}`, { method: 'DELETE' }),
+
+  // Dependencies
+  addDependency: (taskId, dependsOnId) =>
+    request('/dependencies', json({ task_id: taskId, depends_on_id: dependsOnId })),
+  removeDependency: (taskId, dependsOnId) =>
+    request('/dependencies', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: taskId, depends_on_id: dependsOnId }),
+    }),
 };
