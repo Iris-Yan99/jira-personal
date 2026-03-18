@@ -14,7 +14,10 @@
       "Bash(lsof:*)",
       "Bash(brew upgrade:*)",
       "Bash(tree -L 3 -I node_modules /Users/iris/Desktop/jira-personal 2>/dev/null || find /Users/iris/Desktop/jira-personal -not -path \"*/node_modules/*\" -type f | sort)",
-      "Bash(bash .claude/skills/brainstorming/scripts/start-server.sh --project-dir /Users/iris/Desktop/jira-personal)"
+      "Bash(bash .claude/skills/brainstorming/scripts/start-server.sh --project-dir /Users/iris/Desktop/jira-personal)",
+      "Bash(git checkout:*)",
+      "Bash(bash /Users/iris/Desktop/jira-personal/.claude/skills/brainstorming/scripts/start-server.sh --project-dir /Users/iris/Desktop/jira-personal)",
+      "Bash(node -e \"require\\('./db'\\); console.log\\('ok'\\)\" 2>&1 && sqlite3 data/tasks.db \".schema tasks\" | grep -E \"parent_id|progress_percent\")"
     ]
   }
 }

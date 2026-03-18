@@ -66,6 +66,21 @@ function runMigrations() {
     db.pragma('user_version = 1');
     console.log('[DB] Migration v1 applied: parent_id, progress_percent');
   }
+
+  if (version < 2) {
+    db.exec(`
+      ALTER TABLE tasks ADD COLUMN assignee TEXT DEFAULT '';
+      ALTER TABLE tasks ADD COLUMN progress_note TEXT DEFAULT '';
+      ALTER TABLE tasks ADD COLUMN coordination_note TEXT DEFAULT '';
+      CREATE TABLE IF NOT EXISTS members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+      );
+    `);
+    db.pragma('user_version = 2');
+    console.log('[DB] Migration v2 applied: assignee, progress_note, coordination_note, members table');
+  }
 }
 
 runMigrations();

@@ -1,0 +1,126 @@
+<h2>樹形展示預覽</h2>
+<p class="subtitle">無限層級遞迴渲染，看板卡片實際效果</p>
+
+<div class="mockup">
+  <div class="mockup-header">看板「待辦」欄 — 展開狀態</div>
+  <div class="mockup-body" style="background:#f8fafc;padding:12px;display:flex;flex-direction:column;gap:8px;">
+
+    <!-- Top-level task 1 (expanded, with subtasks) -->
+    <div style="border:1.5px solid #bfdbfe;border-radius:10px;background:white;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+      <!-- Parent header -->
+      <div style="padding:10px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <div>
+            <span style="font-size:10px;color:#9ca3af;">P1</span>
+            <div style="font-weight:600;font-size:12px;color:#111827;margin-top:1px;">📦 開發用戶認證系統</div>
+          </div>
+          <button style="font-size:11px;color:#6b7280;background:#f3f4f6;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;">▲ 收起</button>
+        </div>
+        <!-- progress bar -->
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="flex:1;height:4px;background:#e5e7eb;border-radius:2px;">
+            <div style="width:40%;height:100%;background:#2563eb;border-radius:2px;"></div>
+          </div>
+          <span style="font-size:10px;color:#6b7280;">2/5 完成 · 40%</span>
+        </div>
+      </div>
+
+      <!-- Level 1 subtasks -->
+      <div style="border-top:1px solid #eff6ff;background:#f8fbff;padding:8px 12px 8px 20px;">
+
+        <!-- Subtask 1 (done, leaf) -->
+        <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #eff6ff;">
+          <span style="color:#16a34a;font-size:12px;">✅</span>
+          <span style="font-size:11px;color:#6b7280;text-decoration:line-through;">設計資料庫 Schema</span>
+          <span style="margin-left:auto;font-size:9px;color:#d1d5db;">葉節點</span>
+        </div>
+
+        <!-- Subtask 2 (done, leaf) -->
+        <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #eff6ff;">
+          <span style="color:#16a34a;font-size:12px;">✅</span>
+          <span style="font-size:11px;color:#6b7280;text-decoration:line-through;">JWT Token 機制</span>
+        </div>
+
+        <!-- Subtask 3 (has children, expanded) -->
+        <div style="padding:5px 0;border-bottom:1px solid #eff6ff;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="color:#f59e0b;font-size:12px;">◑</span>
+            <span style="font-size:11px;color:#374151;font-weight:500;">前端登入流程</span>
+            <span style="font-size:9px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:8px;">1/2</span>
+            <button style="margin-left:auto;font-size:10px;color:#9ca3af;background:none;border:none;cursor:pointer;">▲</button>
+          </div>
+          <!-- Level 2 subtasks -->
+          <div style="margin-top:4px;padding-left:16px;border-left:2px solid #fde68a;">
+            <div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+              <span style="color:#16a34a;font-size:11px;">✅</span>
+              <span style="font-size:10px;color:#6b7280;text-decoration:line-through;">登入表單 UI</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+              <span style="color:#d1d5db;font-size:11px;">○</span>
+              <span style="font-size:10px;color:#374151;">記住我功能</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subtask 4 (has children, collapsed) -->
+        <div style="padding:5px 0;border-bottom:1px solid #eff6ff;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="color:#d1d5db;font-size:12px;">○</span>
+            <span style="font-size:11px;color:#374151;font-weight:500;">後端 API 路由</span>
+            <span style="font-size:9px;background:#f3f4f6;color:#6b7280;padding:1px 5px;border-radius:8px;">0/3</span>
+            <button style="margin-left:auto;font-size:10px;color:#9ca3af;background:none;border:none;cursor:pointer;">▼ 展開</button>
+          </div>
+          <!-- collapsed: shows nothing -->
+        </div>
+
+        <!-- Subtask 5 (leaf, todo) -->
+        <div style="display:flex;align-items:center;gap:6px;padding:5px 0;">
+          <span style="color:#d1d5db;font-size:12px;">○</span>
+          <span style="font-size:11px;color:#374151;">E2E 整合測試</span>
+        </div>
+
+        <!-- Notes summary -->
+        <div style="margin-top:8px;padding:6px 8px;background:#fffbeb;border-radius:6px;border:1px solid #fde68a;font-size:10px;color:#78350f;">
+          <div>📝 <strong>進度備注：</strong>JWT 部分完成，前端還需處理 token refresh 邏輯</div>
+          <div style="margin-top:3px;">🔗 <strong>需協調：</strong>需與後端確認 refresh token 過期策略</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top-level task 2 (collapsed) -->
+    <div style="border:1.5px solid #e5e7eb;border-radius:10px;background:white;padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <span style="font-size:10px;color:#9ca3af;">P2</span>
+          <div style="font-weight:600;font-size:12px;color:#111827;">🎨 重構 UI 設計系統</div>
+        </div>
+        <button style="font-size:11px;color:#6b7280;background:#f3f4f6;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;">▼ 4子任務</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+        <div style="flex:1;height:3px;background:#e5e7eb;border-radius:2px;">
+          <div style="width:0%;height:100%;background:#2563eb;border-radius:2px;"></div>
+        </div>
+        <span style="font-size:10px;color:#9ca3af;">0/4 · 0%</span>
+      </div>
+    </div>
+
+    <!-- Top-level task 3 (no children, plain) -->
+    <div style="border:1px solid #e5e7eb;border-radius:10px;background:white;padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+      <span style="font-size:10px;color:#9ca3af;">P3</span>
+      <div style="font-weight:600;font-size:12px;color:#111827;margin-top:1px;">📄 更新 README 文件</div>
+      <div style="font-size:10px;color:#d1d5db;margin-top:4px;">無子任務</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>設計說明</h3>
+  <ul style="font-size:13px;color:#374151;line-height:1.8;padding-left:16px;">
+    <li>每層縮排 + 不同顏色的縱線（藍→黃→綠...）區分深度</li>
+    <li>有子節點的任務顯示進度 badge（x/y）和展開/收起按鈕</li>
+    <li>葉節點（無子任務）只有勾選框，點擊直接標記完成</li>
+    <li>進度備注、需協調事項摘要顯示在展開區底部</li>
+    <li>看板欄只顯示頂層任務，子任務不單獨出現在欄中</li>
+  </ul>
+</div>

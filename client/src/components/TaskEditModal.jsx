@@ -18,6 +18,17 @@ const LOG_TYPE = {
 
 const STATUS_LABEL = { todo: '待办', in_progress: '进行中', done: '已完成' }
 
+const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-gray-50 focus:bg-white transition-colors'
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>
+      {children}
+    </div>
+  )
+}
+
 const localDateStr = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -37,7 +48,19 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     priority_level: task.priority_level || 'P4',
     tags: Array.isArray(task.tags) ? task.tags.join(', ') : '',
     parent_id: task.parent_id || null,
+    assignee: task.assignee || '',
+    progress_percent: task.progress_percent ?? 0,
   })
+
+  // ── Notes tab state ──────────────────────────────────────────
+  const [progressNote, setProgressNote] = useState(task.progress_note || '')
+  const [coordinationNote, setCoordinationNote] = useState(task.coordination_note || '')
+
+  // ── Members for assignee datalist ───────────────────────────
+  const [members, setMembers] = useState([])
+  useEffect(() => {
+    api.getMembers().then(setMembers).catch(() => {})
+  }, [])
 
   const { childrenMap } = useMemo(() => buildTree(tasks), [tasks])
   const descendantIds = useMemo(() => getDescendantIds(task.id, childrenMap), [task.id, childrenMap])
@@ -92,6 +115,8 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
       tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
       parent_id: form.parent_id || null,
       clear_parent: form.parent_id === null,
+      progress_note: progressNote,
+      coordination_note: coordinationNote,
     })
     setSaving(false)
   }
@@ -194,14 +219,6 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     win.document.close()
   }
 
-  const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-gray-50 focus:bg-white transition-colors'
-  const Field = ({ label, children }) => (
-    <div>
-      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>
-      {children}
-    </div>
-  )
-
   return (
     <div
       className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -216,7 +233,7 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
           </div>
           {/* Tabs */}
           <div className="flex gap-0">
-            {[{ id: 'info', label: '基本信息' }, { id: 'logs', label: '日志' }].map((tab) => (
+            {[{ id: 'info', label: '基本信息' }, { id: 'notes', label: '备注' }, { id: 'logs', label: '日志' }].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -296,6 +313,35 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
               <Field label="标签（逗号分隔）">
                 <input type="text" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="开发, 会议, 文档" className={inputCls} />
               </Field>
+              <Field label="负责人">
+                <input
+                  type="text"
+                  list="members-list"
+                  value={form.assignee}
+                  onChange={(e) => set('assignee', e.target.value)}
+                  placeholder="输入或选择成员"
+                  className={inputCls}
+                />
+                <datalist id="members-list">
+                  {members.map((m) => <option key={m.id} value={m.name} />)}
+                </datalist>
+              </Field>
+              {(childrenMap[task.id] || []).length === 0 && (
+                <Field label={`进度 (${form.progress_percent}%)`}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={form.progress_percent}
+                    onChange={(e) => set('progress_percent', Number(e.target.value))}
+                    className="w-full accent-blue-600"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+                    <span>0%</span><span>50%</span><span>100%</span>
+                  </div>
+                </Field>
+              )}
 
               {/* Conflict warning */}
               {conflict && (
@@ -344,6 +390,48 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                   {saving ? '保存中...' : conflict && !conflict.loading ? '忽略继续保存' : '保存'}
                 </button>
               </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Notes Tab ── */}
+        {activeTab === 'notes' && (
+          <>
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  进度备注
+                </label>
+                <textarea
+                  value={progressNote}
+                  onChange={(e) => setProgressNote(e.target.value)}
+                  rows={5}
+                  placeholder="当前进展说明..."
+                  className={`${inputCls} resize-none`}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-red-500 uppercase tracking-wide mb-1.5">
+                  需协调事项
+                </label>
+                <textarea
+                  value={coordinationNote}
+                  onChange={(e) => setCoordinationNote(e.target.value)}
+                  rows={5}
+                  placeholder="需要项目经理协调的事项..."
+                  className={`${inputCls} resize-none border-red-200 focus:ring-red-300`}
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">取消</button>
+              <button
+                onClick={doSave}
+                disabled={saving}
+                className="px-5 py-2 text-sm rounded-lg disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 font-medium"
+              >
+                {saving ? '保存中...' : '保存'}
+              </button>
             </div>
           </>
         )}

@@ -119,6 +119,26 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
           </div>
           <span className="text-xs text-gray-400 w-8 text-right">{progress}%</span>
         </div>
+
+        {/* Assignee */}
+        {task.assignee && (
+          <div className="mt-1.5 flex items-center gap-1">
+            <span className="text-xs text-gray-400">👤</span>
+            <span className="text-xs text-gray-500 font-medium">{task.assignee}</span>
+          </div>
+        )}
+
+        {/* Notes summary */}
+        {task.progress_note && (
+          <div className="mt-1.5 text-xs text-blue-600 bg-blue-50 rounded px-2 py-1 line-clamp-2">
+            {task.progress_note}
+          </div>
+        )}
+        {task.coordination_note && (
+          <div className="mt-1 text-xs text-red-600 bg-red-50 rounded px-2 py-1 font-medium line-clamp-2">
+            ⚠ {task.coordination_note}
+          </div>
+        )}
       </div>
 
       {/* Children (recursive) */}

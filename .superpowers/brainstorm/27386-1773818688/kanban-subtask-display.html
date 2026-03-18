@@ -1,0 +1,119 @@
+<h2>看板中子任務如何顯示？</h2>
+<p class="subtitle">父任務展開後，子任務以哪種方式呈現？</p>
+
+<div class="cards">
+
+  <!-- Option A: nested inline -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#f8fafc;">
+      <div style="background:white;border-radius:10px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);font-size:11px;">
+        <!-- Parent card -->
+        <div style="border:1.5px solid #bfdbfe;border-radius:8px;padding:8px;margin-bottom:0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-weight:600;color:#1e40af;">📦 開發用戶認證模組</span>
+            <span style="font-size:10px;color:#6b7280;">▼ 3子任務</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+            <div style="flex:1;height:4px;background:#dbeafe;border-radius:2px;">
+              <div style="width:33%;height:100%;background:#2563eb;border-radius:2px;"></div>
+            </div>
+            <span style="font-size:9px;color:#6b7280;">1/3</span>
+          </div>
+          <!-- subtasks nested -->
+          <div style="border-left:2px solid #bfdbfe;padding-left:8px;space-y:4px;">
+            <div style="background:#eff6ff;border-radius:5px;padding:5px 7px;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+              <span style="color:#16a34a;font-size:10px;">✅</span>
+              <span style="font-size:10px;color:#374151;">設計 DB Schema</span>
+            </div>
+            <div style="background:#f9fafb;border-radius:5px;padding:5px 7px;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+              <span style="color:#d1d5db;font-size:10px;">○</span>
+              <span style="font-size:10px;color:#374151;">實作 JWT 邏輯</span>
+            </div>
+            <div style="background:#f9fafb;border-radius:5px;padding:5px 7px;display:flex;align-items:center;gap:5px;">
+              <span style="color:#d1d5db;font-size:10px;">○</span>
+              <span style="font-size:10px;color:#374151;">寫 E2E 測試</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 嵌套展開（父卡片內）</h3>
+      <p>子任務直接展開在父卡片下方，縮排顯示，帶完成勾選框。父卡片有進度條和展開/收起切換。</p>
+    </div>
+  </div>
+
+  <!-- Option B: subtasks as separate cards below -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#f8fafc;">
+      <div style="font-size:11px;">
+        <!-- Parent card -->
+        <div style="border:1.5px solid #bfdbfe;border-radius:8px;padding:8px;background:white;margin-bottom:4px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+            <span style="font-weight:600;color:#1e40af;">📦 開發用戶認證模組</span>
+            <span style="font-size:10px;color:#6b7280;">▼</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <div style="flex:1;height:3px;background:#dbeafe;border-radius:2px;">
+              <div style="width:33%;height:100%;background:#2563eb;border-radius:2px;"></div>
+            </div>
+            <span style="font-size:9px;color:#6b7280;">1/3 完成</span>
+          </div>
+        </div>
+        <!-- Subtask cards indented -->
+        <div style="padding-left:12px;border-left:2px solid #bfdbfe;margin-left:6px;">
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;margin-bottom:3px;display:flex;align-items:center;gap:5px;">
+            <span style="color:#16a34a;">✅</span>
+            <span style="color:#6b7280;text-decoration:line-through;">設計 DB Schema</span>
+          </div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;margin-bottom:3px;font-size:10px;color:#374151;">
+            ○ 實作 JWT 邏輯
+          </div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;font-size:10px;color:#374151;">
+            ○ 寫 E2E 測試
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 子卡片縮排（父卡片下方獨立卡片）</h3>
+      <p>展開後子任務以獨立卡片排列在父卡片正下方，左側有縮排線。子任務可各自拖拽移動狀態。</p>
+    </div>
+  </div>
+
+  <!-- Option C: subtask count badge only, click to open modal -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#f8fafc;">
+      <div style="font-size:11px;">
+        <!-- Parent card normal size -->
+        <div style="border:1.5px solid #bfdbfe;border-radius:8px;padding:8px;background:white;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-weight:600;color:#1e40af;">📦 開發用戶認證模組</span>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center;">
+            <span style="background:#eff6ff;color:#1d4ed8;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:600;">↳ 3 子任務</span>
+            <div style="flex:1;height:3px;background:#dbeafe;border-radius:2px;margin-left:4px;">
+              <div style="width:33%;height:100%;background:#2563eb;border-radius:2px;"></div>
+            </div>
+            <span style="font-size:9px;color:#6b7280;">1/3</span>
+          </div>
+        </div>
+        <!-- Arrow pointing to modal -->
+        <div style="text-align:center;font-size:10px;color:#9ca3af;margin-bottom:4px;">點擊「3 子任務」→ 彈出</div>
+        <div style="background:white;border-radius:10px;padding:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);font-size:10px;">
+          <div style="font-weight:600;margin-bottom:6px;color:#1e40af;">子任務列表</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div style="display:flex;align-items:center;gap:5px;"><span style="color:#16a34a;">✅</span> 設計 DB Schema</div>
+            <div style="display:flex;align-items:center;gap:5px;"><span style="color:#d1d5db;">○</span> 實作 JWT 邏輯</div>
+            <div style="display:flex;align-items:center;gap:5px;"><span style="color:#d1d5db;">○</span> 寫 E2E 測試</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Badge + Modal</h3>
+      <p>父卡片顯示「↳ N 子任務」badge 和進度條，點擊後彈出子任務列表 Modal。看板不展開，保持整潔。</p>
+    </div>
+  </div>
+
+</div>
