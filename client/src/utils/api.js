@@ -29,6 +29,8 @@ export const api = {
     return request(`/logs${q ? '?' + q : ''}`);
   },
   createLog: (data) => request('/logs', json(data)),
+  updateLog: (id, data) => request(`/logs/${id}`, { ...json(data), method: 'PUT' }),
+  deleteLog: (id) => request(`/logs/${id}`, { method: 'DELETE' }),
 
   // Reports
   getReports: (params = {}) => {

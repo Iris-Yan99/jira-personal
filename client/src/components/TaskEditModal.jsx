@@ -102,6 +102,67 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     if (activeTab === 'logs') loadLogs()
   }, [activeTab])
 
+  // ── 工時 tab state ──────────────────────────────────────────
+  const [dailyLogs, setDailyLogs] = useState([])
+  const [dailyLogsLoading, setDailyLogsLoading] = useState(false)
+  const [editingLogId, setEditingLogId] = useState(null)
+  const [editLogHours, setEditLogHours] = useState('')
+  const [editLogNote, setEditLogNote] = useState('')
+  const [newHoursLog, setNewHoursLog] = useState({ hours: '', note: '' })
+  const [addingHoursLog, setAddingHoursLog] = useState(false)
+
+  useEffect(() => {
+    if (activeTab === 'hours') loadDailyLogs()
+  }, [activeTab])
+
+  const loadDailyLogs = async () => {
+    setDailyLogsLoading(true)
+    try {
+      const data = await api.getLogs({ task_id: task.id })
+      setDailyLogs(data)
+    } finally {
+      setDailyLogsLoading(false)
+    }
+  }
+
+  const startEditLog = (log) => {
+    setEditingLogId(log.id)
+    setEditLogHours(String(log.hours_logged || ''))
+    setEditLogNote(log.note || '')
+  }
+
+  const saveEditLog = async (id) => {
+    const hours = parseFloat(editLogHours)
+    await api.updateLog(id, { hours_logged: isNaN(hours) ? 0 : hours, note: editLogNote })
+    setEditingLogId(null)
+    await loadDailyLogs()
+  }
+
+  const deleteLog = async (id) => {
+    if (!window.confirm('確認刪除此工時記錄？')) return
+    await api.deleteLog(id)
+    await loadDailyLogs()
+  }
+
+  const addHoursLog = async () => {
+    const hours = parseFloat(newHoursLog.hours)
+    if (!hours || hours <= 0) return
+    setAddingHoursLog(true)
+    try {
+      await api.createLog({
+        task_id: task.id,
+        date: localDateStr(),
+        progress_percent: 0,
+        note: newHoursLog.note,
+        hours_logged: hours,
+      })
+      setNewHoursLog({ hours: '', note: '' })
+      await loadDailyLogs()
+    } finally {
+      setAddingHoursLog(false)
+    }
+  }
+
   const loadLogs = async () => {
     setLogsLoading(true)
     try {
@@ -283,7 +344,7 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
           </div>
           {/* Tabs */}
           <div className="flex gap-0">
-            {[{ id: 'info', label: '基本信息' }, { id: 'notes', label: '备注' }, { id: 'logs', label: '日志' }].map((tab) => (
+            {[{ id: 'info', label: '基本信息' }, { id: 'notes', label: '备注' }, { id: 'hours', label: '工時' }, { id: 'logs', label: '日志' }].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -530,6 +591,120 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
             </div>
           </>
         )}
+
+        {/* ── 工時 Tab ── */}
+        {activeTab === 'hours' && (() => {
+          const totalActual = dailyLogs.reduce((s, l) => s + (l.hours_logged || 0), 0)
+          const estimated = parseFloat(task.estimated_hours) || 0
+          const remaining = estimated - totalActual
+          const pct = estimated > 0 ? Math.min((totalActual / estimated) * 100, 100) : 0
+          const overrun = totalActual > estimated && estimated > 0
+          return (
+            <>
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {/* Summary */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">預計 <span className="font-semibold text-gray-700">{estimated}h</span></span>
+                    <span className="text-gray-500">實際 <span className="font-semibold text-blue-600">{totalActual.toFixed(1)}h</span></span>
+                    <span className="text-gray-500">
+                      {overrun
+                        ? <span className="font-semibold text-red-500">超 {(totalActual - estimated).toFixed(1)}h</span>
+                        : <span className="font-semibold text-green-600">剩 {remaining.toFixed(1)}h</span>
+                      }
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${overrun ? 'bg-red-500' : 'bg-blue-500'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="text-right text-xs text-gray-400">{pct.toFixed(0)}%</div>
+                </div>
+
+                {/* Log entries */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">工時記錄明細</p>
+                  {dailyLogsLoading && <p className="text-sm text-gray-400 py-4 text-center">加載中...</p>}
+                  {!dailyLogsLoading && dailyLogs.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-300">
+                      <div className="text-2xl mb-1">⏱</div>
+                      <p className="text-sm">暫無工時記錄</p>
+                    </div>
+                  )}
+                  {!dailyLogsLoading && dailyLogs.map((log) => (
+                    <div key={log.id} className="border-b border-gray-100 last:border-0 py-2.5">
+                      {editingLogId === log.id ? (
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={editLogHours}
+                            onChange={e => setEditLogHours(e.target.value)}
+                            className="w-20 px-2 py-1 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          />
+                          <span className="text-xs text-gray-400">h</span>
+                          <input
+                            type="text"
+                            value={editLogNote}
+                            onChange={e => setEditLogNote(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && saveEditLog(log.id)}
+                            className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            placeholder="備註"
+                          />
+                          <button onClick={() => saveEditLog(log.id)} className="text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                          <button onClick={() => setEditingLogId(null)} className="text-xs px-2 py-1 text-gray-500 hover:bg-gray-100 rounded-lg">取消</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-400 w-24 shrink-0">{log.date}</span>
+                          <span className="text-sm font-semibold text-blue-600 w-12 shrink-0">{(log.hours_logged || 0).toFixed(1)}h</span>
+                          <span className="flex-1 text-sm text-gray-600 truncate">{log.note || '—'}</span>
+                          <button onClick={() => startEditLog(log)} className="text-gray-400 hover:text-blue-500 text-sm px-1">✎</button>
+                          <button onClick={() => deleteLog(log.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">🗑</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add entry */}
+              <div className="px-5 py-4 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">手動添加</p>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    value={newHoursLog.hours}
+                    onChange={e => setNewHoursLog(p => ({ ...p, hours: e.target.value }))}
+                    placeholder="小時數"
+                    className="w-24 px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
+                  />
+                  <span className="text-xs text-gray-400">h</span>
+                  <input
+                    type="text"
+                    value={newHoursLog.note}
+                    onChange={e => setNewHoursLog(p => ({ ...p, note: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && addHoursLog()}
+                    placeholder="備註（選填）"
+                    className="flex-1 px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
+                  />
+                  <button
+                    onClick={addHoursLog}
+                    disabled={addingHoursLog || !newHoursLog.hours || parseFloat(newHoursLog.hours) <= 0}
+                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors font-medium"
+                  >
+                    {addingHoursLog ? '...' : '添加'}
+                  </button>
+                </div>
+              </div>
+            </>
+          )
+        })()}
 
         {/* ── Logs Tab ── */}
         {activeTab === 'logs' && (

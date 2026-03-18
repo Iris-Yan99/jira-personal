@@ -36,10 +36,15 @@ router.post('/quick', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { progress_percent, note } = req.body;
-  db.prepare('UPDATE daily_logs SET progress_percent = ?, note = ? WHERE id = ?')
-    .run(progress_percent, note, req.params.id);
+  const { progress_percent, note, hours_logged } = req.body;
+  db.prepare('UPDATE daily_logs SET progress_percent = COALESCE(?, progress_percent), note = COALESCE(?, note), hours_logged = COALESCE(?, hours_logged) WHERE id = ?')
+    .run(progress_percent ?? null, note ?? null, hours_logged ?? null, req.params.id);
   res.json(db.prepare('SELECT * FROM daily_logs WHERE id = ?').get(req.params.id));
+});
+
+router.delete('/:id', (req, res) => {
+  db.prepare('DELETE FROM daily_logs WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
 });
 
 module.exports = router;
