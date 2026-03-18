@@ -93,6 +93,14 @@ function runMigrations() {
     db.pragma('user_version = 3');
     console.log('[DB] Migration v3 applied: task_dependencies table');
   }
+
+  if (version < 4) {
+    db.exec(`
+      ALTER TABLE daily_logs ADD COLUMN hours_logged REAL DEFAULT 0;
+    `);
+    db.pragma('user_version = 4');
+    console.log('[DB] Migration v4 applied: hours_logged on daily_logs');
+  }
 }
 
 runMigrations();

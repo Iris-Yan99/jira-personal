@@ -13,11 +13,25 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { task_id, date, progress_percent, note } = req.body;
+  const { task_id, date, progress_percent, note, hours_logged } = req.body;
   const result = db.prepare(`
-    INSERT INTO daily_logs (task_id, date, progress_percent, note)
-    VALUES (?, ?, ?, ?)
-  `).run(task_id, date, progress_percent || 0, note || '');
+    INSERT INTO daily_logs (task_id, date, progress_percent, note, hours_logged)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(task_id, date, progress_percent || 0, note || '', hours_logged || 0);
+  res.json(db.prepare('SELECT * FROM daily_logs WHERE id = ?').get(result.lastInsertRowid));
+});
+
+router.post('/quick', (req, res) => {
+  const { task_id, hours, note } = req.body;
+  if (!task_id || !hours || hours <= 0) {
+    return res.status(400).json({ error: 'task_id and hours (> 0) are required' });
+  }
+  const today = new Date();
+  const date = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const result = db.prepare(`
+    INSERT INTO daily_logs (task_id, date, progress_percent, note, hours_logged)
+    VALUES (?, ?, 0, ?, ?)
+  `).run(task_id, date, note || '', hours);
   res.json(db.prepare('SELECT * FROM daily_logs WHERE id = ?').get(result.lastInsertRowid));
 });
 

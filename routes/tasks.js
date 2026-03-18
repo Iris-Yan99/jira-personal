@@ -10,7 +10,11 @@ router.get('/', (req, res) => {
          WHERE l.task_id = t.id ORDER BY l.created_at DESC LIMIT 1),
         t.progress_percent,
         0
-      ) AS progress_percent
+      ) AS progress_percent,
+      COALESCE(
+        (SELECT SUM(l.hours_logged) FROM daily_logs l WHERE l.task_id = t.id),
+        0
+      ) AS actual_hours
     FROM tasks t
     ORDER BY t.priority_score DESC, t.created_at DESC
   `).all();
