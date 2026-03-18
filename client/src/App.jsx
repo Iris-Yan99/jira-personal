@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import Header from './components/Header'
-import ChatPanel from './components/ChatPanel'
 import KanbanBoard from './components/KanbanBoard'
 import ScheduleView from './components/ScheduleView'
 import ReportsView from './components/ReportsView'
@@ -98,14 +97,7 @@ export default function App() {
 
       <main className="flex-1 overflow-hidden">
         {activeTab === 'board' && (
-          <div className="flex h-full">
-            <div className="w-[30%] min-w-[280px] max-w-[400px] border-r border-gray-200 h-full overflow-hidden flex-shrink-0">
-              <ChatPanel onTaskCreated={loadTasks} tasks={tasks} />
-            </div>
-            <div className="flex-1 h-full overflow-hidden">
-              <KanbanBoard tasks={tasks} onTasksChange={loadTasks} />
-            </div>
-          </div>
+          <KanbanBoard tasks={tasks} onTasksChange={loadTasks} />
         )}
         {activeTab === 'schedule' && <ScheduleView tasks={tasks} />}
         {activeTab === 'reports' && <ReportsView tasks={tasks} />}
