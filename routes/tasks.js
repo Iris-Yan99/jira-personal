@@ -23,10 +23,10 @@ router.get('/:id', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { title, description, deadline, estimated_hours, importance, status, tags } = req.body;
+  const { title, description, deadline, estimated_hours, importance, status, tags, parent_id, progress_percent } = req.body;
   const result = db.prepare(`
-    INSERT INTO tasks (title, description, deadline, estimated_hours, importance, status, tags)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (title, description, deadline, estimated_hours, importance, status, tags, parent_id, progress_percent)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     title,
     description || '',
@@ -34,14 +34,16 @@ router.post('/', (req, res) => {
     estimated_hours || 1,
     importance || 'mid',
     status || 'todo',
-    JSON.stringify(tags || [])
+    JSON.stringify(tags || []),
+    parent_id || null,
+    progress_percent || 0
   );
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid);
   res.json({ ...task, tags: JSON.parse(task.tags || '[]') });
 });
 
 router.put('/:id', (req, res) => {
-  const { title, description, deadline, estimated_hours, importance, status, priority_score, priority_level, tags } = req.body;
+  const { title, description, deadline, estimated_hours, importance, status, priority_score, priority_level, tags, parent_id, progress_percent, clear_parent } = req.body;
   db.prepare(`
     UPDATE tasks SET
       title = COALESCE(?, title),
@@ -53,6 +55,8 @@ router.put('/:id', (req, res) => {
       priority_score = COALESCE(?, priority_score),
       priority_level = COALESCE(?, priority_level),
       tags = COALESCE(?, tags),
+      parent_id = CASE WHEN ? = 1 THEN NULL ELSE COALESCE(?, parent_id) END,
+      progress_percent = COALESCE(?, progress_percent),
       updated_at = datetime('now', 'localtime')
     WHERE id = ?
   `).run(
@@ -65,6 +69,9 @@ router.put('/:id', (req, res) => {
     priority_score ?? null,
     priority_level ?? null,
     tags !== undefined ? JSON.stringify(tags) : null,
+    clear_parent === true ? 1 : 0,
+    parent_id ?? null,
+    progress_percent ?? null,
     req.params.id
   );
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);

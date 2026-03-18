@@ -55,4 +55,19 @@ db.exec(`
   );
 `);
 
+function runMigrations() {
+  const version = db.pragma('user_version', { simple: true });
+
+  if (version < 1) {
+    db.exec(`
+      ALTER TABLE tasks ADD COLUMN parent_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE;
+      ALTER TABLE tasks ADD COLUMN progress_percent INTEGER DEFAULT 0;
+    `);
+    db.pragma('user_version = 1');
+    console.log('[DB] Migration v1 applied: parent_id, progress_percent');
+  }
+}
+
+runMigrations();
+
 module.exports = db;
