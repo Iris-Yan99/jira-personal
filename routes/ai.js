@@ -397,4 +397,55 @@ ${(conflicts || []).map((c, i) => `${i + 1}. ${c}`).join('\n')}
   }
 });
 
+// AI estimate hours for a task based on historical work logs
+router.post('/estimate-hours', async (req, res) => {
+  const { title, description, tags, importance } = req.body;
+  const db = require('../db');
+
+  // Fetch completed tasks with actual hours logged
+  const history = db.prepare(`
+    SELECT t.title, t.description, t.tags, t.importance, t.estimated_hours,
+      COALESCE((SELECT SUM(l.hours_logged) FROM daily_logs l WHERE l.task_id = t.id), 0) AS actual_hours
+    FROM tasks t
+    WHERE t.status = 'done'
+      AND (SELECT SUM(l.hours_logged) FROM daily_logs l WHERE l.task_id = t.id) > 0
+    ORDER BY t.updated_at DESC
+    LIMIT 20
+  `).all();
+
+  if (history.length === 0) {
+    return res.json({ estimated: null, reasoning: '暫無歷史工時數據，無法預估。請先完成一些任務並記錄工時。' });
+  }
+
+  const historyText = history.map(t => {
+    const tagsArr = JSON.parse(t.tags || '[]');
+    return `- 任務：${t.title}（重要度：${t.importance}，標籤：${tagsArr.join('/')||'無'}）\n  預估 ${t.estimated_hours}h，實際 ${t.actual_hours.toFixed(1)}h`;
+  }).join('\n');
+
+  const newTagsArr = Array.isArray(tags) ? tags : [];
+  const prompt = `你是一個工時預估專家。根據以下歷史任務工時數據，為新任務預估所需工時。
+
+歷史已完成任務工時記錄：
+${historyText}
+
+新任務信息：
+- 標題：${title}
+- 描述：${description || '（無）'}
+- 重要度：${importance || 'mid'}
+- 標籤：${newTagsArr.join('/') || '無'}
+
+請分析歷史數據中相似任務的實際工時，給出預估。嚴格按以下格式輸出兩行（不要其他內容）：
+預估工時：X.X
+預估說明：[一句話說明參考依據]`;
+
+  try {
+    const content = await callOllama([{ role: 'user', content: prompt }]);
+    const hoursMatch = content.match(/預估工時[：:]\s*([\d.]+)/);
+    const estimated = hoursMatch ? parseFloat(hoursMatch[1]) : null;
+    res.json({ estimated, reasoning: content });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

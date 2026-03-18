@@ -55,6 +55,7 @@ export const api = {
   weeklyReport: (tasks, taskLogs, startDate, endDate) => request('/ai/weekly-report', json({ tasks, taskLogs, startDate, endDate })),
   monthlyReport: (tasks, taskLogs, month) => request('/ai/monthly-report', json({ tasks, taskLogs, month })),
   conflictSuggest: (task, conflicts, allTasks) => request('/ai/conflict-suggest', json({ task, conflicts, allTasks })),
+  estimateHours: (task) => request('/ai/estimate-hours', json(task)),
   extractTask: (description) => request('/ai/extract-task', json({ description })),
 
   // Members

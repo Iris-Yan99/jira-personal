@@ -91,11 +91,33 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
   // Conflict state: null | { reasons, suggestion, suggestedDate, loading }
   const [conflict, setConflict] = useState(null)
 
+  // AI hours estimate state
+  const [estimating, setEstimating] = useState(false)
+  const [estimateResult, setEstimateResult] = useState(null)
+
+  const handleEstimateHours = async () => {
+    setEstimating(true)
+    setEstimateResult(null)
+    try {
+      const result = await api.estimateHours({
+        title: form.title,
+        description: form.description,
+        tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        importance: form.importance,
+      })
+      setEstimateResult(result)
+      if (result.estimated) set('estimated_hours', result.estimated)
+    } catch {
+      setEstimateResult({ estimated: null, reasoning: '（AI 服務暫時不可用）' })
+    } finally {
+      setEstimating(false)
+    }
+  }
+
   // ── Logs tab state ──────────────────────────────────────────
   const [taskLogs, setTaskLogs] = useState([])
   const [logsLoading, setLogsLoading] = useState(false)
   const [newLogContent, setNewLogContent] = useState('')
-  const [newLogHours, setNewLogHours] = useState('')
   const [addingLog, setAddingLog] = useState(false)
 
   useEffect(() => {
@@ -108,7 +130,7 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
   const [editingLogId, setEditingLogId] = useState(null)
   const [editLogHours, setEditLogHours] = useState('')
   const [editLogNote, setEditLogNote] = useState('')
-  const [newHoursLog, setNewHoursLog] = useState({ hours: '', note: '' })
+  const [newHoursLog, setNewHoursLog] = useState({ hours: '', note: '', date: localDateStr() })
   const [addingHoursLog, setAddingHoursLog] = useState(false)
 
   useEffect(() => {
@@ -151,12 +173,12 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     try {
       await api.createLog({
         task_id: task.id,
-        date: localDateStr(),
+        date: newHoursLog.date || localDateStr(),
         progress_percent: 0,
         note: newHoursLog.note,
         hours_logged: hours,
       })
-      setNewHoursLog({ hours: '', note: '' })
+      setNewHoursLog({ hours: '', note: '', date: localDateStr() })
       await loadDailyLogs()
     } finally {
       setAddingHoursLog(false)
@@ -278,12 +300,7 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     if (!content) return
     setAddingLog(true)
     await api.createTaskLog({ task_id: task.id, date: localDateStr(), type: 'manual', content })
-    const hours = parseFloat(newLogHours)
-    if (hours > 0) {
-      await api.createLog({ task_id: task.id, date: localDateStr(), progress_percent: 0, note: content, hours_logged: hours })
-    }
     setNewLogContent('')
-    setNewLogHours('')
     await loadLogs()
     setAddingLog(false)
   }
@@ -390,7 +407,23 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                   <input type="date" value={form.deadline} onChange={(e) => set('deadline', e.target.value)} className={inputCls} />
                 </Field>
                 <Field label="预估工时 (小时)">
-                  <input type="number" min="0.5" step="0.5" value={form.estimated_hours} onChange={(e) => set('estimated_hours', e.target.value)} className={inputCls} />
+                  <div className="flex gap-1.5">
+                    <input type="number" min="0.5" step="0.5" value={form.estimated_hours} onChange={(e) => set('estimated_hours', e.target.value)} className={`${inputCls} flex-1`} />
+                    <button
+                      type="button"
+                      onClick={handleEstimateHours}
+                      disabled={estimating || !form.title.trim()}
+                      title="AI 根據歷史工時預估"
+                      className="px-2 py-1 text-sm bg-purple-100 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-200 disabled:opacity-40 transition-colors whitespace-nowrap"
+                    >
+                      {estimating ? '⏳' : '✨ AI'}
+                    </button>
+                  </div>
+                  {estimateResult && (
+                    <div className="mt-1.5 p-2 bg-purple-50 border border-purple-200 rounded-lg">
+                      <p className="text-xs text-purple-700 leading-relaxed whitespace-pre-wrap">{estimateResult.reasoning}</p>
+                    </div>
+                  )}
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -633,48 +666,76 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                       <p className="text-sm">暫無工時記錄</p>
                     </div>
                   )}
-                  {!dailyLogsLoading && dailyLogs.map((log) => (
-                    <div key={log.id} className="border-b border-gray-100 last:border-0 py-2.5">
-                      {editingLogId === log.id ? (
-                        <div className="flex gap-2 items-center">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.5"
-                            value={editLogHours}
-                            onChange={e => setEditLogHours(e.target.value)}
-                            className="w-20 px-2 py-1 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          />
-                          <span className="text-xs text-gray-400">h</span>
-                          <input
-                            type="text"
-                            value={editLogNote}
-                            onChange={e => setEditLogNote(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && saveEditLog(log.id)}
-                            className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            placeholder="備註"
-                          />
-                          <button onClick={() => saveEditLog(log.id)} className="text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
-                          <button onClick={() => setEditingLogId(null)} className="text-xs px-2 py-1 text-gray-500 hover:bg-gray-100 rounded-lg">取消</button>
+                  {!dailyLogsLoading && (() => {
+                    // Sort ascending by date then created_at, then group by date
+                    const sorted = [...dailyLogs].sort((a, b) => {
+                      const d = a.date.localeCompare(b.date)
+                      return d !== 0 ? d : (a.id - b.id)
+                    })
+                    const groups = []
+                    sorted.forEach(log => {
+                      const last = groups[groups.length - 1]
+                      if (last && last.date === log.date) last.logs.push(log)
+                      else groups.push({ date: log.date, logs: [log] })
+                    })
+                    return groups.map(group => (
+                      <div key={group.date} className="mb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-gray-500">{group.date}</span>
+                          <span className="text-xs text-gray-400">
+                            共 {group.logs.reduce((s, l) => s + (l.hours_logged || 0), 0).toFixed(1)}h
+                          </span>
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-gray-400 w-24 shrink-0">{log.date}</span>
-                          <span className="text-sm font-semibold text-blue-600 w-12 shrink-0">{(log.hours_logged || 0).toFixed(1)}h</span>
-                          <span className="flex-1 text-sm text-gray-600 truncate">{log.note || '—'}</span>
-                          <button onClick={() => startEditLog(log)} className="text-gray-400 hover:text-blue-500 text-sm px-1">✎</button>
-                          <button onClick={() => deleteLog(log.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">🗑</button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        {group.logs.map(log => (
+                          <div key={log.id} className="border-b border-gray-100 last:border-0 py-2 pl-3">
+                            {editingLogId === log.id ? (
+                              <div className="flex gap-2 items-center">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.5"
+                                  value={editLogHours}
+                                  onChange={e => setEditLogHours(e.target.value)}
+                                  className="w-20 px-2 py-1 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                />
+                                <span className="text-xs text-gray-400">h</span>
+                                <input
+                                  type="text"
+                                  value={editLogNote}
+                                  onChange={e => setEditLogNote(e.target.value)}
+                                  onKeyDown={e => e.key === 'Enter' && saveEditLog(log.id)}
+                                  className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                  placeholder="備註"
+                                />
+                                <button onClick={() => saveEditLog(log.id)} className="text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                                <button onClick={() => setEditingLogId(null)} className="text-xs px-2 py-1 text-gray-500 hover:bg-gray-100 rounded-lg">取消</button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm font-semibold text-blue-600 w-12 shrink-0">{(log.hours_logged || 0).toFixed(1)}h</span>
+                                <span className="flex-1 text-sm text-gray-600 truncate">{log.note || '—'}</span>
+                                <button onClick={() => startEditLog(log)} className="text-gray-400 hover:text-blue-500 text-sm px-1">✎</button>
+                                <button onClick={() => deleteLog(log.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">🗑</button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  })()}
                 </div>
               </div>
 
               {/* Add entry */}
               <div className="px-5 py-4 border-t border-gray-100">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">手動添加</p>
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center flex-wrap">
+                  <input
+                    type="date"
+                    value={newHoursLog.date}
+                    onChange={e => setNewHoursLog(p => ({ ...p, date: e.target.value }))}
+                    className="px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
+                  />
                   <input
                     type="number"
                     min="0.5"
@@ -682,7 +743,7 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                     value={newHoursLog.hours}
                     onChange={e => setNewHoursLog(p => ({ ...p, hours: e.target.value }))}
                     placeholder="小時數"
-                    className="w-24 px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
+                    className="w-20 px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
                   />
                   <span className="text-xs text-gray-400">h</span>
                   <input
@@ -691,7 +752,7 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                     onChange={e => setNewHoursLog(p => ({ ...p, note: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && addHoursLog()}
                     placeholder="備註（選填）"
-                    className="flex-1 px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
+                    className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
                   />
                   <button
                     onClick={addHoursLog}
@@ -737,30 +798,15 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
 
             {/* Add log + export */}
             <div className="px-5 py-4 border-t border-gray-100 space-y-3">
-              <div className="flex gap-2 items-start">
-                <div className="flex-1 space-y-2">
-                  <input
-                    type="text"
-                    value={newLogContent}
-                    onChange={(e) => setNewLogContent(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addLog()}
-                    placeholder="手动添加日志记录..."
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
-                  />
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 whitespace-nowrap">工時 (h):</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={newLogHours}
-                      onChange={(e) => setNewLogHours(e.target.value)}
-                      placeholder="0"
-                      className="w-20 px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
-                    />
-                    <span className="text-xs text-gray-400">（選填，填入後累加到實際工時）</span>
-                  </div>
-                </div>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={newLogContent}
+                  onChange={(e) => setNewLogContent(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addLog()}
+                  placeholder="手动添加日志记录..."
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
+                />
                 <button
                   onClick={addLog}
                   disabled={addingLog || !newLogContent.trim()}
