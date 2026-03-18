@@ -1,0 +1,46 @@
+{
+  "info": {
+    "name": "API Tests Template",
+    "description": "Newman/Postman Collection 模板",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "api_version", "value": "v1" },
+    { "key": "auth_token", "value": "" },
+    { "key": "token_expiry", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": ["// 集合级 pre-request 脚本", "// 自动刷新 JWT Token"]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('响应是有效 JSON', () => { pm.response.json(); });",
+          "pm.test('无服务器错误', () => { pm.expect(pm.response.code).to.be.below(500); });",
+          "pm.test('响应时间 < 5s', () => { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health" }
+          }
+        }
+      ]
+    }
+  ]
+}

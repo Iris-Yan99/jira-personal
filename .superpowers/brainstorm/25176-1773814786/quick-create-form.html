@@ -1,0 +1,103 @@
+<h2>快速創建表單 — 佈局方案</h2>
+<p class="subtitle">快速創建按鈕彈出的表單，哪種方案最符合你的使用習慣？</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#f8fafc;">
+      <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,0.12);font-size:12px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:12px;color:#1e40af;">⚡ 快速創建任務</div>
+        <div style="margin-bottom:8px;">
+          <div style="font-size:10px;color:#6b7280;margin-bottom:3px;">任務標題 *</div>
+          <div class="mock-input" style="font-size:11px;padding:5px 8px;">輸入任務標題...</div>
+        </div>
+        <div style="margin-bottom:8px;">
+          <div style="font-size:10px;color:#6b7280;margin-bottom:3px;">截止日期 *</div>
+          <div class="mock-input" style="font-size:11px;padding:5px 8px;">yyyy-mm-dd</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;">
+            <div style="font-size:10px;color:#6b7280;margin-bottom:3px;">預估工時</div>
+            <div class="mock-input" style="font-size:11px;padding:5px 8px;">2h</div>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:10px;color:#6b7280;margin-bottom:3px;">重要程度</div>
+            <div class="mock-input" style="font-size:11px;padding:5px 8px;">中 ▾</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;font-style:italic;">💡 AI 會根據標題語義自動調整重要程度</div>
+        <div style="display:flex;gap:6px;">
+          <div class="mock-button" style="flex:1;font-size:11px;padding:5px;background:#2563eb;color:white;border-radius:8px;text-align:center;">創建任務</div>
+          <div class="mock-button" style="font-size:11px;padding:5px 8px;background:#f3f4f6;color:#374151;border-radius:8px;text-align:center;">取消</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 精簡表單（彈窗）</h3>
+      <p>Modal 彈窗，4 個欄位，標題+截止必填，其他有默認值。AI 提示在表單內顯示。</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#f8fafc;">
+      <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,0.12);font-size:12px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:12px;color:#1e40af;">⚡ 快速創建</div>
+        <!-- inline row form -->
+        <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;">
+          <div style="flex:2;min-width:100px;">
+            <div style="font-size:10px;color:#6b7280;margin-bottom:3px;">標題 *</div>
+            <div class="mock-input" style="font-size:11px;padding:5px 8px;">任務標題...</div>
+          </div>
+          <div style="flex:1;min-width:70px;">
+            <div style="font-size:10px;color:#6b7280;margin-bottom:3px;">截止 *</div>
+            <div class="mock-input" style="font-size:11px;padding:5px 8px;">日期</div>
+          </div>
+          <div>
+            <div class="mock-button" style="font-size:11px;padding:5px 10px;background:#2563eb;color:white;border-radius:8px;white-space:nowrap;">創建</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:10px;background:#eff6ff;color:#1d4ed8;padding:2px 7px;border-radius:20px;cursor:pointer;">+ 工時: 2h</span>
+          <span style="font-size:10px;background:#fefce8;color:#854d0e;padding:2px 7px;border-radius:20px;cursor:pointer;">重要度: 中</span>
+          <span style="font-size:10px;background:#f3f4f6;color:#6b7280;padding:2px 7px;border-radius:20px;cursor:pointer;">+ 描述</span>
+        </div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:8px;font-style:italic;">💡 AI 自動判斷重要程度，可點擊標籤調整</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 行內展開（非彈窗）</h3>
+      <p>在看板頂部展開一行，最少只填標題+截止，可點擊 Tag 展開附加欄位。</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#f8fafc;">
+      <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,0.12);font-size:12px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:12px;color:#1e40af;">⚡ 快速創建任務</div>
+        <div style="margin-bottom:8px;">
+          <div class="mock-input" style="font-size:12px;padding:7px 10px;border:2px solid #2563eb;">輸入任務，例如：「明天前完成報告，很重要」</div>
+        </div>
+        <div style="background:#eff6ff;border-radius:8px;padding:8px;margin-bottom:8px;font-size:10px;color:#1e40af;">
+          <div style="margin-bottom:4px;">✨ AI 解析結果：</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <span style="background:white;padding:2px 7px;border-radius:4px;">📌 完成報告</span>
+            <span style="background:white;padding:2px 7px;border-radius:4px;">📅 2026-03-19</span>
+            <span style="background:#fee2e2;color:#b91c1c;padding:2px 7px;border-radius:4px;">🔴 高</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <div class="mock-button" style="flex:1;font-size:11px;padding:5px;background:#2563eb;color:white;border-radius:8px;text-align:center;">確認創建</div>
+          <div class="mock-button" style="font-size:11px;padding:5px 8px;background:#f3f4f6;color:#374151;border-radius:8px;text-align:center;">編輯</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — 自然語言 + 即時解析</h3>
+      <p>一個輸入框，輸入自然語言，AI 即時提取欄位並預覽，確認後創建。和聊天面板類似但更快。</p>
+    </div>
+  </div>
+
+</div>
