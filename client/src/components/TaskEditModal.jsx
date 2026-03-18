@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { api } from '../utils/api'
 import { detectConflicts } from '../utils/conflicts'
+import { buildTree, getDescendantIds } from '../utils/taskTree'
 
 const PRIORITY_COLORS = {
   P1: 'bg-red-100 text-red-700 border-red-300',
@@ -35,7 +36,11 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     status: task.status || 'todo',
     priority_level: task.priority_level || 'P4',
     tags: Array.isArray(task.tags) ? task.tags.join(', ') : '',
+    parent_id: task.parent_id || null,
   })
+
+  const { childrenMap } = useMemo(() => buildTree(tasks), [tasks])
+  const descendantIds = useMemo(() => getDescendantIds(task.id, childrenMap), [task.id, childrenMap])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -85,6 +90,8 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
       title: form.title.trim(),
       estimated_hours: parseFloat(form.estimated_hours) || 1,
       tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+      parent_id: form.parent_id || null,
+      clear_parent: form.parent_id === null,
     })
     setSaving(false)
   }
@@ -231,6 +238,21 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               <Field label="标题 *">
                 <input type="text" value={form.title} onChange={(e) => set('title', e.target.value)} className={inputCls} placeholder="任务标题" />
+              </Field>
+              <Field label="父任務">
+                <select
+                  value={form.parent_id || ''}
+                  onChange={(e) => set('parent_id', e.target.value ? Number(e.target.value) : null)}
+                  className={inputCls}
+                >
+                  <option value="">— 無（頂層任務）—</option>
+                  {tasks
+                    .filter((t) => t.id !== task.id && !descendantIds.has(t.id))
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))
+                  }
+                </select>
               </Field>
               <Field label="描述">
                 <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} className={`${inputCls} resize-none`} placeholder="详细描述（可选）" />

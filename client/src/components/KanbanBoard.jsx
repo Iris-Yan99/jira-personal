@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
-import TaskCard from './TaskCard'
+import { useState, useEffect, useMemo } from 'react'
 import TaskEditModal from './TaskEditModal'
 import { api } from '../utils/api'
+import { buildTree, calcProgress } from '../utils/taskTree'
 
 const COLUMNS = [
   {
@@ -38,11 +38,117 @@ const IMPORTANCE_CLASS = {
   low: 'bg-green-50 border-green-200 text-green-700',
 }
 const HOURS_CYCLE = [1, 2, 4, 8]
+const DEPTH_COLORS = ['border-blue-300', 'border-yellow-400', 'border-green-400', 'border-purple-300', 'border-pink-300']
+const PRIORITY_BADGE = {
+  P1: 'bg-red-500 text-white', P2: 'bg-orange-400 text-white',
+  P3: 'bg-yellow-400 text-gray-800', P4: 'bg-gray-300 text-gray-700',
+}
 
+// ─── TaskTreeNode ────────────────────────────────────────────────────────────
+function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onToggle, onLeafDone, onOpenEdit }) {
+  const children = childrenMap[task.id] || []
+  const hasChildren = children.length > 0
+  const isExpanded = expandedIds.has(task.id)
+  const progress = calcProgress(task.id, childrenMap, tasksById)
+  const depthColor = DEPTH_COLORS[depth % DEPTH_COLORS.length]
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const deadline = task.deadline
+    ? (() => { const [y, m, d] = task.deadline.split('-').map(Number); return new Date(y, m - 1, d) })()
+    : null
+  const daysLeft = deadline ? Math.round((deadline - today) / 86400000) : null
+  const isOverdue = daysLeft !== null && daysLeft < 0 && task.status !== 'done'
+
+  return (
+    <div className={depth > 0 ? `ml-3 pl-3 border-l-2 ${depthColor}` : ''}>
+      <div
+        className={`bg-white rounded-xl border border-gray-100 p-3 mb-2 ${depth === 0 ? 'shadow-sm' : ''} ${!hasChildren ? 'cursor-pointer hover:shadow-md transition-all' : ''}`}
+        onClick={!hasChildren ? () => onOpenEdit(task) : undefined}
+      >
+        {/* Header row */}
+        <div className="flex items-start gap-2 mb-2">
+          {!hasChildren && (
+            <input
+              type="checkbox"
+              checked={task.status === 'done'}
+              onChange={() => onLeafDone(task)}
+              onClick={(e) => e.stopPropagation()}
+              className="mt-0.5 cursor-pointer accent-blue-600 flex-shrink-0"
+            />
+          )}
+          <h3
+            className={`flex-1 text-sm font-medium leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}
+            onClick={hasChildren ? () => onOpenEdit(task) : undefined}
+            style={hasChildren ? { cursor: 'pointer' } : {}}
+          >
+            {task.title}
+          </h3>
+          <span className={`flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded ${PRIORITY_BADGE[task.priority_level] || PRIORITY_BADGE.P4}`}>
+            {task.priority_level || 'P4'}
+          </span>
+          {hasChildren && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggle(task.id) }}
+              className="text-xs text-gray-400 bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded-md transition-colors whitespace-nowrap flex-shrink-0"
+            >
+              {isExpanded ? '▲ 收起' : `▼ ${children.length}子任務`}
+            </button>
+          )}
+        </div>
+
+        {/* Deadline */}
+        {task.deadline && (
+          <div className={`flex items-center gap-1 text-xs mb-2 ${isOverdue ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
+            <span>📅</span>
+            <span>{task.deadline}</span>
+            {isOverdue && <span>(已逾期)</span>}
+            {!isOverdue && daysLeft !== null && daysLeft <= 7 && (
+              <span className="text-orange-500">({daysLeft === 0 ? '今天' : `${daysLeft}天後`})</span>
+            )}
+          </div>
+        )}
+
+        {/* Progress bar */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="text-xs text-gray-400 w-8 text-right">{progress}%</span>
+        </div>
+      </div>
+
+      {/* Children (recursive) */}
+      {hasChildren && isExpanded && (
+        <div className="mb-2">
+          {children.map((child) => (
+            <TaskTreeNode
+              key={child.id}
+              task={child}
+              childrenMap={childrenMap}
+              tasksById={tasksById}
+              depth={depth + 1}
+              expandedIds={expandedIds}
+              onToggle={onToggle}
+              onLeafDone={onLeafDone}
+              onOpenEdit={onOpenEdit}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── KanbanBoard ─────────────────────────────────────────────────────────────
 export default function KanbanBoard({ tasks, onTasksChange }) {
   const [dragId, setDragId] = useState(null)
   const [dragOver, setDragOver] = useState(null)
   const [editTask, setEditTask] = useState(null)
+  const [expandedIds, setExpandedIds] = useState(new Set())
 
   // Quick create state
   const [qcOpen, setQcOpen] = useState(false)
@@ -51,15 +157,19 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
   const [qcDeadline, setQcDeadline] = useState('')
   const [qcHours, setQcHours] = useState(2)
   const [qcImportance, setQcImportance] = useState('mid')
+  const [qcParentId, setQcParentId] = useState(null)
   const [qcExtracting, setQcExtracting] = useState(false)
   const [qcCreating, setQcCreating] = useState(false)
   const [qcDeadlineError, setQcDeadlineError] = useState(false)
 
-  const byStatus = {
-    todo: tasks.filter((t) => t.status === 'todo'),
-    in_progress: tasks.filter((t) => t.status === 'in_progress'),
-    done: tasks.filter((t) => t.status === 'done'),
-  }
+  const { roots, childrenMap, tasksById } = useMemo(() => buildTree(tasks), [tasks])
+
+  const toggleExpand = (id) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
 
   const STATUS_LABEL = { todo: '待办', in_progress: '进行中', done: '已完成' }
 
@@ -85,6 +195,32 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
     setDragOver(null)
   }
 
+  const checkParentCompletion = (parentId, currentTasks) => {
+    if (!parentId) return
+    const siblings = currentTasks.filter((t) => t.parent_id === parentId)
+    const allDone = siblings.length > 0 && siblings.every((t) => t.status === 'done')
+    if (!allDone) return
+    const parent = currentTasks.find((t) => t.id === parentId)
+    if (!parent || parent.status === 'done') return
+    const confirmed = window.confirm(`所有子任務已完成，是否完成「${parent.title}」？`)
+    if (confirmed) {
+      api.updateTask(parentId, { status: 'done' }).then(() => {
+        onTasksChange()
+        const updated = currentTasks.map((t) => t.id === parentId ? { ...t, status: 'done' } : t)
+        checkParentCompletion(parent.parent_id, updated)
+      })
+    }
+  }
+
+  const handleLeafDone = async (task) => {
+    const newStatus = task.status === 'done' ? 'todo' : 'done'
+    await api.updateTask(task.id, { status: newStatus })
+    onTasksChange()
+    if (newStatus !== 'done' || !task.parent_id) return
+    const updatedTasks = tasks.map((t) => t.id === task.id ? { ...t, status: 'done' } : t)
+    checkParentCompletion(task.parent_id, updatedTasks)
+  }
+
   const resetQc = () => {
     setQcOpen(false)
     setQcDesc('')
@@ -92,6 +228,7 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
     setQcDeadline('')
     setQcHours(2)
     setQcImportance('mid')
+    setQcParentId(null)
     setQcExtracting(false)
     setQcCreating(false)
     setQcDeadlineError(false)
@@ -141,6 +278,7 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
         description: '',
         tags: [],
         status: 'todo',
+        parent_id: qcParentId || null,
       })
       onTasksChange()
       resetQc()
@@ -152,10 +290,11 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
   }
 
   const totalHours = (colId) =>
-    byStatus[colId].reduce((s, t) => s + (t.estimated_hours || 0), 0)
+    tasks.filter((t) => t.status === colId).reduce((s, t) => s + (t.estimated_hours || 0), 0)
 
   return (
     <div className="h-full flex flex-col">
+      {/* Header */}
       <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
         <h2 className="font-semibold text-gray-700">任务看板</h2>
         <div className="flex items-center gap-3">
@@ -169,9 +308,9 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
         </div>
       </div>
 
+      {/* Quick create form */}
       {qcOpen && (
         <div className="px-6 py-4 border-b border-blue-100 bg-blue-50 flex-shrink-0">
-          {/* 自然語言輸入行 */}
           <div className="flex gap-2 mb-3">
             <input
               type="text"
@@ -191,8 +330,19 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
             </button>
           </div>
 
-          {/* 表單欄位行 */}
           <div className="flex gap-2 items-start flex-wrap">
+            {/* Parent task selector */}
+            <select
+              value={qcParentId || ''}
+              onChange={(e) => setQcParentId(e.target.value ? Number(e.target.value) : null)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="">頂層任務</option>
+              {tasks.map((t) => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
+
             <div className="flex-1 min-w-48">
               <input
                 type="text"
@@ -211,12 +361,9 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
                   qcDeadlineError ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200'
                 }`}
               />
-              {qcDeadlineError && (
-                <p className="text-xs text-red-500 mt-1">截止日期必填</p>
-              )}
+              {qcDeadlineError && <p className="text-xs text-red-500 mt-1">截止日期必填</p>}
             </div>
 
-            {/* 工時 Tag */}
             <button
               onClick={() => setQcHours(HOURS_CYCLE[(HOURS_CYCLE.indexOf(qcHours) + 1) % HOURS_CYCLE.length])}
               className="px-3 py-2 bg-white border border-gray-200 text-xs text-gray-600 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
@@ -225,7 +372,6 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
               ⏱ {qcHours}h
             </button>
 
-            {/* 重要度 Tag */}
             <button
               onClick={() => setQcImportance(IMPORTANCE_CYCLE[(IMPORTANCE_CYCLE.indexOf(qcImportance) + 1) % IMPORTANCE_CYCLE.length])}
               className={`px-3 py-2 border text-xs font-medium rounded-lg hover:opacity-80 transition-colors whitespace-nowrap ${IMPORTANCE_CLASS[qcImportance]}`}
@@ -251,62 +397,58 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
         </div>
       )}
 
+      {/* Kanban columns */}
       <div className="flex-1 overflow-hidden p-5">
         <div className="flex gap-4 h-full">
-          {COLUMNS.map((col) => (
-            <div
-              key={col.id}
-              className={`flex-1 flex flex-col rounded-xl border-2 transition-all ${
-                dragOver === col.id ? 'drag-over' : `${col.bg} ${col.border}`
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault()
-                setDragOver(col.id)
-              }}
-              onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                  setDragOver(null)
-                }
-              }}
-              onDrop={() => handleDrop(col.id)}
-            >
-              {/* Column header */}
-              <div className="px-4 py-3 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <h3 className={`font-semibold text-sm ${col.color}`}>{col.label}</h3>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.countColor}`}>
-                    {byStatus[col.id].length}
-                  </span>
-                </div>
-                {byStatus[col.id].length > 0 && (
-                  <span className="text-xs text-gray-400">{totalHours(col.id)}h</span>
-                )}
-              </div>
-
-              {/* Cards */}
-              <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
-                {byStatus[col.id].map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onClick={() => setEditTask(task)}
-                    onDragStart={() => setDragId(task.id)}
-                    onDragEnd={() => {
-                      setDragId(null)
-                      setDragOver(null)
-                    }}
-                  />
-                ))}
-                {byStatus[col.id].length === 0 && (
-                  <div className={`text-center text-sm py-10 ${
-                    dragOver === col.id ? 'text-blue-400' : 'text-gray-300'
-                  }`}>
-                    {dragOver === col.id ? '放置到此处' : '暂无任务'}
+          {COLUMNS.map((col) => {
+            const colRoots = roots.filter((t) => t.status === col.id)
+            return (
+              <div
+                key={col.id}
+                className={`flex-1 flex flex-col rounded-xl border-2 transition-all ${
+                  dragOver === col.id ? 'drag-over' : `${col.bg} ${col.border}`
+                }`}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(col.id) }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null) }}
+                onDrop={() => handleDrop(col.id)}
+              >
+                {/* Column header */}
+                <div className="px-4 py-3 flex items-center justify-between flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className={`font-semibold text-sm ${col.color}`}>{col.label}</h3>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.countColor}`}>
+                      {tasks.filter((t) => t.status === col.id).length}
+                    </span>
                   </div>
-                )}
+                  {tasks.filter((t) => t.status === col.id).length > 0 && (
+                    <span className="text-xs text-gray-400">{totalHours(col.id)}h</span>
+                  )}
+                </div>
+
+                {/* Cards */}
+                <div className="flex-1 overflow-y-auto px-3 pb-3">
+                  {colRoots.map((task) => (
+                    <TaskTreeNode
+                      key={task.id}
+                      task={task}
+                      childrenMap={childrenMap}
+                      tasksById={tasksById}
+                      depth={0}
+                      expandedIds={expandedIds}
+                      onToggle={toggleExpand}
+                      onLeafDone={handleLeafDone}
+                      onOpenEdit={setEditTask}
+                    />
+                  ))}
+                  {colRoots.length === 0 && (
+                    <div className={`text-center text-sm py-10 ${dragOver === col.id ? 'text-blue-400' : 'text-gray-300'}`}>
+                      {dragOver === col.id ? '放置到此处' : '暂无任务'}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
