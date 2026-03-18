@@ -1,0 +1,78 @@
+<h2>Blocked 任務卡片 — 外觀方案</h2>
+<p class="subtitle">看板上 blocked 任務的視覺呈現，選一個你喜歡的風格</p>
+
+<div class="cards">
+
+  <!-- Option A: Subtle badge -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:14px;border-radius:8px">
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:12px;font-size:12px;opacity:0.4;margin-bottom:8px">
+        <div style="font-weight:600;color:#374151;margin-bottom:6px">設計評審會議準備</div>
+        <div style="height:4px;background:#e5e7eb;border-radius:2px"><div style="height:4px;width:30%;background:#3b82f6;border-radius:2px"></div></div>
+      </div>
+      <!-- Blocked card -->
+      <div style="background:white;border:1.5px solid #fbbf24;border-radius:10px;padding:12px;font-size:12px;position:relative">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px">⛔ BLOCKED</span>
+          <span style="color:#6b7280;font-size:10px">解鎖於 2026-03-25</span>
+        </div>
+        <div style="font-weight:600;color:#374151;margin-bottom:6px">前端頁面開發</div>
+        <div style="height:4px;background:#e5e7eb;border-radius:2px"><div style="height:4px;width:0%;background:#3b82f6;border-radius:2px"></div></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 黃色邊框 + badge</h3>
+      <p>醒目但不干擾。blocked badge 在標題上方，旁邊顯示預計解鎖日期</p>
+    </div>
+  </div>
+
+  <!-- Option B: Red stripe -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:14px;border-radius:8px">
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:12px;font-size:12px;opacity:0.4;margin-bottom:8px">
+        <div style="font-weight:600;color:#374151;margin-bottom:6px">設計評審會議準備</div>
+        <div style="height:4px;background:#e5e7eb;border-radius:2px"><div style="height:4px;width:30%;background:#3b82f6;border-radius:2px"></div></div>
+      </div>
+      <!-- Blocked card -->
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;font-size:12px">
+        <div style="background:#fee2e2;border-bottom:1px solid #fecaca;padding:5px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="color:#dc2626;font-size:10px;font-weight:700">⛔ Blocked — 等待 1 個前置任務</span>
+          <span style="color:#dc2626;font-size:10px">解鎖 03-25</span>
+        </div>
+        <div style="padding:10px 12px">
+          <div style="font-weight:600;color:#374151;margin-bottom:6px">前端頁面開發</div>
+          <div style="height:4px;background:#e5e7eb;border-radius:2px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 紅色頂部欄</h3>
+      <p>更強視覺衝擊。頂部紅條顯示 blocked 原因和解鎖日期，一眼看出</p>
+    </div>
+  </div>
+
+  <!-- Option C: Dimmed with overlay -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:14px;border-radius:8px">
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:12px;font-size:12px;opacity:0.4;margin-bottom:8px">
+        <div style="font-weight:600;color:#374151;margin-bottom:6px">設計評審會議準備</div>
+        <div style="height:4px;background:#e5e7eb;border-radius:2px"><div style="height:4px;width:30%;background:#3b82f6;border-radius:2px"></div></div>
+      </div>
+      <!-- Blocked card (dimmed) -->
+      <div style="background:#f9fafb;border:1px dashed #d1d5db;border-radius:10px;padding:12px;font-size:12px;opacity:0.75">
+        <div style="font-weight:600;color:#9ca3af;margin-bottom:4px;text-decoration:line-through">前端頁面開發</div>
+        <div style="color:#ef4444;font-size:10px;font-weight:600;margin-bottom:6px">⛔ blocked · 解鎖於 2026-03-25</div>
+        <div style="height:4px;background:#e5e7eb;border-radius:2px"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — 灰度 + 虛線邊框</h3>
+      <p>整張卡片變灰、虛線框，視覺上「退後」，暗示此任務暫時擱置</p>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:24px;padding:16px;background:#f0f9ff;border-radius:10px;border:1px solid #bae6fd">
+  <p style="margin:0;font-size:13px;color:#0369a1"><strong>三個方案共同點：</strong>都會顯示「⛔ blocked」標籤 + 預計解鎖日期（取前置任務最晚 deadline）。差別只在視覺強度。</p>
+</div>
