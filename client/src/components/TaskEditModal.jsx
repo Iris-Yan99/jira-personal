@@ -95,6 +95,7 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
   const [taskLogs, setTaskLogs] = useState([])
   const [logsLoading, setLogsLoading] = useState(false)
   const [newLogContent, setNewLogContent] = useState('')
+  const [newLogHours, setNewLogHours] = useState('')
   const [addingLog, setAddingLog] = useState(false)
 
   useEffect(() => {
@@ -216,7 +217,12 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     if (!content) return
     setAddingLog(true)
     await api.createTaskLog({ task_id: task.id, date: localDateStr(), type: 'manual', content })
+    const hours = parseFloat(newLogHours)
+    if (hours > 0) {
+      await api.createLog({ task_id: task.id, date: localDateStr(), progress_percent: 0, note: content, hours_logged: hours })
+    }
     setNewLogContent('')
+    setNewLogHours('')
     await loadLogs()
     setAddingLog(false)
   }
@@ -556,15 +562,30 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
 
             {/* Add log + export */}
             <div className="px-5 py-4 border-t border-gray-100 space-y-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newLogContent}
-                  onChange={(e) => setNewLogContent(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addLog()}
-                  placeholder="手动添加日志记录..."
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
-                />
+              <div className="flex gap-2 items-start">
+                <div className="flex-1 space-y-2">
+                  <input
+                    type="text"
+                    value={newLogContent}
+                    onChange={(e) => setNewLogContent(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addLog()}
+                    placeholder="手动添加日志记录..."
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
+                  />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 whitespace-nowrap">工時 (h):</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={newLogHours}
+                      onChange={(e) => setNewLogHours(e.target.value)}
+                      placeholder="0"
+                      className="w-20 px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
+                    />
+                    <span className="text-xs text-gray-400">（選填，填入後累加到實際工時）</span>
+                  </div>
+                </div>
                 <button
                   onClick={addLog}
                   disabled={addingLog || !newLogContent.trim()}

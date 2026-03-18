@@ -60,6 +60,10 @@ export const api = {
   createMember: (name) => request('/members', json({ name })),
   deleteMember: (id) => request(`/members/${id}`, { method: 'DELETE' }),
 
+  // Time tracking
+  quickLog: (taskId, hours, note) =>
+    request('/logs/quick', json({ task_id: taskId, hours, note })),
+
   // Dependencies
   addDependency: (taskId, dependsOnId) =>
     request('/dependencies', json({ task_id: taskId, depends_on_id: dependsOnId })),
