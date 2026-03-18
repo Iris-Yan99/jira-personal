@@ -55,8 +55,13 @@ function unlockDate(task) {
   return dates.sort().at(-1) // latest deadline
 }
 
+function fmtH(h) {
+  const n = Number(h) || 0
+  return Number.isInteger(n) ? `${n}h` : `${n.toFixed(1)}h`
+}
+
 // ─── TaskTreeNode ────────────────────────────────────────────────────────────
-function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onToggle, onLeafDone, onOpenEdit }) {
+function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onToggle, onLeafDone, onOpenEdit, quickLogTaskId, onQuickLogOpen, qlHours, setQlHours, qlNote, setQlNote, qlSubmitting, handleQuickLog }) {
   const children = childrenMap[task.id] || []
   const hasChildren = children.length > 0
   const isExpanded = expandedIds.has(task.id)
@@ -117,6 +122,15 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
           <span className={`flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded ${PRIORITY_BADGE[task.priority_level] || PRIORITY_BADGE.P4}`}>
             {task.priority_level || 'P4'}
           </span>
+          {task.status !== 'done' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onQuickLogOpen(quickLogTaskId === task.id ? null : task.id) }}
+              className="flex-shrink-0 text-xs text-gray-400 hover:text-blue-500 px-1 py-0.5 rounded transition-colors"
+              title="記錄工時"
+            >
+              ⏱
+            </button>
+          )}
           {hasChildren && (
             <button
               onClick={(e) => { e.stopPropagation(); onToggle(task.id) }}
@@ -169,6 +183,67 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
             ⚠ {task.coordination_note}
           </div>
         )}
+
+        {/* Time progress bar */}
+        {task.actual_hours > 0 && (
+          <div className="mt-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-gray-400">工時進度</span>
+              <span className="text-xs text-gray-500">{fmtH(task.actual_hours)} / {fmtH(task.estimated_hours || 0)}</span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              {(() => {
+                const pct = Math.min((task.actual_hours / (task.estimated_hours || 1)) * 100, 100)
+                const overrun = task.actual_hours > (task.estimated_hours || 0)
+                return <div className={`h-full rounded-full transition-all duration-300 ${overrun ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
+              })()}
+            </div>
+            <div className="text-right mt-0.5">
+              {task.actual_hours > (task.estimated_hours || 0) ? (
+                <span className="text-xs text-red-500 font-medium">超 {fmtH(task.actual_hours - (task.estimated_hours || 0))}</span>
+              ) : (
+                <span className="text-xs text-gray-400">剩餘 {fmtH((task.estimated_hours || 0) - task.actual_hours)}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Quick log popover */}
+        {quickLogTaskId === task.id && (
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2" onClick={(e) => e.stopPropagation()}>
+            <p className="text-xs font-semibold text-blue-700">⏱ 記錄工時</p>
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                min="0.5"
+                step="0.5"
+                value={qlHours}
+                onChange={(e) => setQlHours(e.target.value)}
+                placeholder="小時數"
+                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                autoFocus
+              />
+              <span className="text-xs text-gray-500">h</span>
+              <input
+                type="text"
+                value={qlNote}
+                onChange={(e) => setQlNote(e.target.value)}
+                placeholder="備註（選填）"
+                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => onQuickLogOpen(null)} className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">取消</button>
+              <button
+                onClick={handleQuickLog}
+                disabled={qlSubmitting || !parseFloat(qlHours)}
+                className="px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40"
+              >
+                {qlSubmitting ? '...' : '記錄'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Children (recursive) */}
@@ -185,6 +260,14 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
               onToggle={onToggle}
               onLeafDone={onLeafDone}
               onOpenEdit={onOpenEdit}
+              quickLogTaskId={quickLogTaskId}
+              onQuickLogOpen={onQuickLogOpen}
+              qlHours={qlHours}
+              setQlHours={setQlHours}
+              qlNote={qlNote}
+              setQlNote={setQlNote}
+              qlSubmitting={qlSubmitting}
+              handleQuickLog={handleQuickLog}
             />
           ))}
         </div>
@@ -199,6 +282,12 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
   const [dragOver, setDragOver] = useState(null)
   const [editTask, setEditTask] = useState(null)
   const [expandedIds, setExpandedIds] = useState(new Set())
+
+  // Quick log state
+  const [quickLogTaskId, setQuickLogTaskId] = useState(null)
+  const [qlHours, setQlHours] = useState('')
+  const [qlNote, setQlNote] = useState('')
+  const [qlSubmitting, setQlSubmitting] = useState(false)
 
   // Quick create state
   const [qcOpen, setQcOpen] = useState(false)
@@ -220,6 +309,28 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+
+  const handleQuickLog = async () => {
+    const hours = parseFloat(qlHours)
+    if (!hours || hours <= 0) return
+    setQlSubmitting(true)
+    try {
+      await api.quickLog(quickLogTaskId, hours, qlNote)
+      onTasksChange()
+      setQuickLogTaskId(null)
+      setQlHours('')
+      setQlNote('')
+    } finally {
+      setQlSubmitting(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!quickLogTaskId) return
+    const handler = (e) => { if (e.key === 'Escape') setQuickLogTaskId(null) }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [quickLogTaskId])
 
   const STATUS_LABEL = { todo: '待办', in_progress: '进行中', done: '已完成' }
 
@@ -488,6 +599,14 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
                       onToggle={toggleExpand}
                       onLeafDone={handleLeafDone}
                       onOpenEdit={setEditTask}
+                      quickLogTaskId={quickLogTaskId}
+                      onQuickLogOpen={setQuickLogTaskId}
+                      qlHours={qlHours}
+                      setQlHours={setQlHours}
+                      qlNote={qlNote}
+                      setQlNote={setQlNote}
+                      qlSubmitting={qlSubmitting}
+                      handleQuickLog={handleQuickLog}
                     />
                   ))}
                   {colRoots.length === 0 && (
