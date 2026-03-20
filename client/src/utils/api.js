@@ -57,6 +57,20 @@ export const api = {
   conflictSuggest: (task, conflicts, allTasks) => request('/ai/conflict-suggest', json({ task, conflicts, allTasks })),
   estimateHours: (task) => request('/ai/estimate-hours', json(task)),
   extractTask: (description) => request('/ai/extract-task', json({ description })),
+  breakdownProject: (data) => request('/ai/breakdown-project', json(data)),
+  extractProjectMeta: (text) => request('/ai/extract-project-meta', json({ text })),
+  parseDocument: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return fetch('/api/upload/parse', { method: 'POST', body: form })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        return res.json();
+      });
+  },
 
   // Members
   getMembers: () => request('/members'),

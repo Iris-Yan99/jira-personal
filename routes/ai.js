@@ -397,6 +397,42 @@ ${(conflicts || []).map((c, i) => `${i + 1}. ${c}`).join('\n')}
   }
 });
 
+// AI project breakdown: generate milestone + task plan from project goal
+router.post('/breakdown-project', async (req, res) => {
+  const { title, description, deadline, background } = req.body;
+  if (!title || !deadline) return res.status(400).json({ error: 'title and deadline are required' });
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const prompt = `你是一個專業的項目管理顧問。根據以下項目信息，生成詳細的項目計劃，包含里程碑和任務分解。
+
+項目名稱：${title}
+項目目標：${description || '（未提供）'}
+截止日期：${deadline}
+背景信息：${background || '（未提供）'}
+今天日期：${todayStr}
+
+請嚴格按以下 JSON 格式輸出（只輸出 JSON，不要任何說明、標記或前綴）：
+{"milestones":[{"title":"里程碑名稱","deadline":"YYYY-MM-DD","description":"里程碑說明","tasks":[{"title":"任務名稱","estimated_hours":4,"importance":"high","description":"任務說明"}]}]}
+
+要求：
+- 生成 3-5 個里程碑，按時間順序排列
+- 每個里程碑 3-6 個任務
+- 最後里程碑截止日期 ≤ 項目截止日期 ${deadline}
+- estimated_hours 範圍 1-16
+- importance 只能是 high/mid/low`;
+
+  try {
+    const content = await callOllama([{ role: 'user', content: prompt }]);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(422).json({ error: 'AI 未返回有效 JSON，請重試', raw: content });
+    const plan = JSON.parse(jsonMatch[0]);
+    res.json(plan);
+  } catch (error) {
+    if (error instanceof SyntaxError) return res.status(422).json({ error: 'AI 返回的 JSON 格式無效，請重試' });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // AI estimate hours for a task based on historical work logs
 router.post('/estimate-hours', async (req, res) => {
   const { title, description, tags, importance } = req.body;
@@ -445,6 +481,51 @@ ${historyText}
     res.json({ estimated, reasoning: content });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Extract project metadata from document text
+router.post('/extract-project-meta', async (req, res) => {
+  const { text } = req.body;
+  if (!text?.trim()) return res.status(400).json({ error: '文字內容不能為空' });
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const prompt = `你是一個項目管理顧問。從以下項目文件文字中提取項目基本信息。
+今天日期：${todayStr}
+
+文件內容：
+${text.slice(0, 8000)}
+
+嚴格按以下 JSON 格式輸出（只輸出 JSON，不要任何說明）：
+{
+  "title": "項目名稱，30字以內，提取不到則null",
+  "deadline": "截止日期，轉為YYYY-MM-DD，提取不到則null",
+  "description": "項目目標或描述，200字以內，提取不到則空字符串",
+  "background": "背景信息、團隊、資源等，200字以內，提取不到則空字符串",
+  "missing": ["title或deadline中提取不到的字段名"],
+  "confidence": {
+    "title": "high或low",
+    "deadline": "high或low",
+    "description": "high或low",
+    "background": "high或low"
+  }
+}
+
+規則：
+- deadline 若文件有明確日期（如「2026年6月30日」「Q2末」「6月底」）→ 轉 YYYY-MM-DD，confidence=high
+- deadline 若只有模糊描述（如「盡快」「近期」）→ 猜一個合理日期，confidence=low
+- deadline 若完全沒有提及 → null，放入 missing
+- title 若提取不到 → null，放入 missing`;
+
+  try {
+    const content = await callOllama([{ role: 'user', content: prompt }]);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(422).json({ error: 'AI 未返回有效 JSON，請重試', raw: content });
+    const meta = JSON.parse(jsonMatch[0]);
+    res.json(meta);
+  } catch (err) {
+    if (err instanceof SyntaxError) return res.status(422).json({ error: 'AI 返回格式無效，請重試' });
+    res.status(500).json({ error: err.message });
   }
 });
 
