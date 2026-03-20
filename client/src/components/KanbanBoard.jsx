@@ -61,7 +61,7 @@ function fmtH(h) {
 }
 
 // ─── TaskTreeNode ────────────────────────────────────────────────────────────
-function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onToggle, onLeafDone, onOpenEdit, quickLogTaskId, onQuickLogOpen, qlHours, setQlHours, qlNote, setQlNote, qlSubmitting, handleQuickLog }) {
+function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onToggle, onLeafDone, onOpenEdit, onDragStart, quickLogTaskId, onQuickLogOpen, qlHours, setQlHours, qlNote, setQlNote, qlSubmitting, handleQuickLog }) {
   const children = childrenMap[task.id] || []
   const hasChildren = children.length > 0
   const isExpanded = expandedIds.has(task.id)
@@ -83,7 +83,10 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
       <div
         className={`bg-white rounded-xl border p-3 mb-2 ${
           blocked ? 'border-2 border-yellow-400' : 'border-gray-100'
-        } ${depth === 0 ? 'shadow-sm' : ''} ${!hasChildren ? 'cursor-pointer hover:shadow-md transition-all' : ''}`}
+        } ${depth === 0 ? 'shadow-sm cursor-grab active:cursor-grabbing' : ''} ${!hasChildren ? 'hover:shadow-md transition-all' : ''}`}
+        draggable={depth === 0}
+        onDragStart={depth === 0 ? (e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(task.id) } : undefined}
+        onDragEnd={depth === 0 ? () => onDragStart(null) : undefined}
         onClick={!hasChildren ? () => onOpenEdit(task) : undefined}
       >
         {/* Milestone / Unplanned badges */}
@@ -272,6 +275,7 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
               onToggle={onToggle}
               onLeafDone={onLeafDone}
               onOpenEdit={onOpenEdit}
+              onDragStart={onDragStart}
               quickLogTaskId={quickLogTaskId}
               onQuickLogOpen={onQuickLogOpen}
               qlHours={qlHours}
@@ -741,6 +745,7 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
                       onToggle={toggleExpand}
                       onLeafDone={handleLeafDone}
                       onOpenEdit={setEditTask}
+                      onDragStart={setDragId}
                       quickLogTaskId={quickLogTaskId}
                       onQuickLogOpen={setQuickLogTaskId}
                       qlHours={qlHours}
