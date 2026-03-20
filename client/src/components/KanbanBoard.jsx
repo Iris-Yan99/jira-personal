@@ -343,6 +343,31 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
     return all.filter(t => descIds.has(t.id))
   }, [tasks, activeProjectId, childrenMap])
 
+  // Done completion prompt state
+  const [donePrompt, setDonePrompt] = useState(null) // null | { taskId, task, fromCheckbox }
+  const [donePromptHours, setDonePromptHours] = useState('')
+
+  const handleDoneConfirm = async (hours) => {
+    const { taskId, task, fromCheckbox } = donePrompt
+    setDonePrompt(null)
+    setDonePromptHours('')
+    await api.updateTask(taskId, { status: 'done' })
+    await api.createTaskLog({
+      task_id: taskId,
+      date: localDateStr(),
+      type: 'status_change',
+      content: `状态从「${STATUS_LABEL[task.status]}」变更为「已完成」`,
+    })
+    if (hours > 0) {
+      await api.quickLog(taskId, hours, '任務完成')
+    }
+    if (fromCheckbox && task.parent_id) {
+      const updatedTasks = tasks.map(t => t.id === taskId ? { ...t, status: 'done' } : t)
+      checkParentCompletion(task.parent_id, updatedTasks)
+    }
+    onTasksChange()
+  }
+
   const toggleExpand = (id) =>
     setExpandedIds((prev) => {
       const next = new Set(prev)
@@ -383,14 +408,18 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
     if (!dragId) return
     const task = tasks.find((t) => t.id === dragId)
     if (task && task.status !== colId) {
-      await api.updateTask(dragId, { status: colId })
-      await api.createTaskLog({
-        task_id: dragId,
-        date: localDateStr(),
-        type: 'status_change',
-        content: `状态从「${STATUS_LABEL[task.status]}」变更为「${STATUS_LABEL[colId]}」`,
-      })
-      onTasksChange()
+      if (colId === 'done') {
+        setDonePrompt({ taskId: dragId, task, fromCheckbox: false })
+      } else {
+        await api.updateTask(dragId, { status: colId })
+        await api.createTaskLog({
+          task_id: dragId,
+          date: localDateStr(),
+          type: 'status_change',
+          content: `状态从「${STATUS_LABEL[task.status]}」变更为「${STATUS_LABEL[colId]}」`,
+        })
+        onTasksChange()
+      }
     }
     setDragId(null)
     setDragOver(null)
@@ -414,12 +443,14 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
   }
 
   const handleLeafDone = async (task) => {
-    const newStatus = task.status === 'done' ? 'todo' : 'done'
-    await api.updateTask(task.id, { status: newStatus })
-    onTasksChange()
-    if (newStatus !== 'done' || !task.parent_id) return
-    const updatedTasks = tasks.map((t) => t.id === task.id ? { ...t, status: 'done' } : t)
-    checkParentCompletion(task.parent_id, updatedTasks)
+    if (task.status !== 'done') {
+      // Marking as done → show completion prompt
+      setDonePrompt({ taskId: task.id, task, fromCheckbox: true })
+    } else {
+      // Unchecking → revert immediately, no prompt
+      await api.updateTask(task.id, { status: 'todo' })
+      onTasksChange()
+    }
   }
 
   const resetQc = () => {
@@ -731,6 +762,54 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
           })}
         </div>
       </div>
+
+      {/* Done completion prompt */}
+      {donePrompt && (
+        <div
+          className="fixed inset-0 bg-black/20 backdrop-blur-[1px] flex items-center justify-center z-50"
+          onClick={() => handleDoneConfirm(0)}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl p-5 w-72" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-3">
+              <span className="text-3xl">✅</span>
+              <h3 className="text-sm font-semibold text-gray-700 mt-2 truncate px-2">「{donePrompt.task.title}」</h3>
+              <p className="text-xs text-gray-400 mt-0.5">這次花了多久？</p>
+            </div>
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              {[0.5, 1, 2, 4].map(h => (
+                <button
+                  key={h}
+                  onClick={() => handleDoneConfirm(h)}
+                  className="py-2.5 text-sm font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100 active:scale-95 transition-all"
+                >{h}h</button>
+              ))}
+            </div>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="number"
+                min="0.5"
+                step="0.5"
+                autoFocus
+                value={donePromptHours}
+                onChange={e => setDonePromptHours(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleDoneConfirm(parseFloat(donePromptHours) || 0)}
+                placeholder="自填小時數..."
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white"
+              />
+              {donePromptHours && (
+                <button
+                  onClick={() => handleDoneConfirm(parseFloat(donePromptHours) || 0)}
+                  className="px-3 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium"
+                >記錄</button>
+              )}
+            </div>
+            <button
+              onClick={() => handleDoneConfirm(0)}
+              className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-colors"
+            >跳過，不記錄工時</button>
+          </div>
+        </div>
+      )}
 
       {editTask && (
         <TaskEditModal
