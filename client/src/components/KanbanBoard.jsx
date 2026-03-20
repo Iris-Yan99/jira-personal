@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import TaskEditModal from './TaskEditModal'
 import { api } from '../utils/api'
-import { buildTree, calcProgress } from '../utils/taskTree'
+import { buildTree, calcProgress, getDescendantIds } from '../utils/taskTree'
 
 const COLUMNS = [
   {
@@ -86,6 +86,18 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
         } ${depth === 0 ? 'shadow-sm' : ''} ${!hasChildren ? 'cursor-pointer hover:shadow-md transition-all' : ''}`}
         onClick={!hasChildren ? () => onOpenEdit(task) : undefined}
       >
+        {/* Milestone / Unplanned badges */}
+        {(task.task_type === 'milestone' || task.unplanned === 1) && (
+          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+            {task.task_type === 'milestone' && (
+              <span className="text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">🏁 里程碑</span>
+            )}
+            {task.unplanned === 1 && (
+              <span className="text-xs font-medium bg-orange-50 text-orange-600 border border-orange-200 px-2 py-0.5 rounded-full">📌 計劃外</span>
+            )}
+          </div>
+        )}
+
         {/* Blocked badge */}
         {blocked && (
           <div className="flex items-center gap-2 mb-2">
@@ -301,7 +313,35 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
   const [qcCreating, setQcCreating] = useState(false)
   const [qcDeadlineError, setQcDeadlineError] = useState(false)
 
+  const [activeProjectId, setActiveProjectId] = useState(null)
+
   const { roots, childrenMap, tasksById } = useMemo(() => buildTree(tasks), [tasks])
+
+  // Root tasks with children → project pills
+  const projects = useMemo(
+    () => roots.filter(r => (childrenMap[r.id] || []).length > 0),
+    [roots, childrenMap]
+  )
+
+  // Tasks/roots scoped to selected project
+  const boardTasks = useMemo(() => {
+    if (!activeProjectId) return tasks
+    const descIds = getDescendantIds(activeProjectId, childrenMap)
+    return tasks.filter(t => descIds.has(t.id))
+  }, [activeProjectId, tasks, childrenMap])
+
+  const boardRoots = useMemo(() => {
+    if (!activeProjectId) return roots
+    return tasks.filter(t => t.parent_id === activeProjectId)
+  }, [activeProjectId, roots, tasks])
+
+  // Milestones within current scope
+  const milestones = useMemo(() => {
+    const all = tasks.filter(t => t.task_type === 'milestone')
+    if (!activeProjectId) return all
+    const descIds = getDescendantIds(activeProjectId, childrenMap)
+    return all.filter(t => descIds.has(t.id))
+  }, [tasks, activeProjectId, childrenMap])
 
   const toggleExpand = (id) =>
     setExpandedIds((prev) => {
@@ -451,7 +491,7 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
   }
 
   const totalHours = (colId) =>
-    tasks.filter((t) => t.status === colId).reduce((s, t) => s + (t.estimated_hours || 0), 0)
+    boardTasks.filter((t) => t.status === colId).reduce((s, t) => s + (t.estimated_hours || 0), 0)
 
   return (
     <div className="h-full flex flex-col">
@@ -459,15 +499,86 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
       <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
         <h2 className="font-semibold text-gray-700">任务看板</h2>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400">{tasks.length} 个任务</span>
+          <span className="text-sm text-gray-400">{boardTasks.length} 个任务</span>
           <button
-            onClick={() => setQcOpen(true)}
+            onClick={() => { setQcOpen(true); if (activeProjectId) setQcParentId(activeProjectId) }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             ⚡ 快速创建
           </button>
         </div>
       </div>
+
+      {/* Project filter pills */}
+      {projects.length > 0 && (
+        <div className="px-6 py-2 border-b border-gray-100 flex gap-2 flex-wrap flex-shrink-0">
+          <button
+            onClick={() => setActiveProjectId(null)}
+            className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${!activeProjectId ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >全部</button>
+          {projects.map(p => (
+            <button key={p.id} onClick={() => setActiveProjectId(p.id)}
+              className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${activeProjectId === p.id ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              {p.title}
+              {p.status === 'in_progress' && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-blue-400 align-middle" />}
+              {p.status === 'done' && ' ✓'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Project banner + milestone strip */}
+      {activeProjectId && (() => {
+        const proj = tasksById[activeProjectId]
+        if (!proj) return null
+        const STATUS_CLS = { todo: 'bg-gray-100 text-gray-600', in_progress: 'bg-blue-100 text-blue-700', done: 'bg-green-100 text-green-700' }
+        const STATUS_LBL = { todo: '待辦', in_progress: '進行中', done: '已完成' }
+        const todayStr = new Date().toISOString().slice(0, 10)
+        return (
+          <>
+            <div className="px-6 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center gap-3 flex-shrink-0">
+              <span className="text-sm font-semibold text-indigo-700">{proj.title}</span>
+              {proj.description && <span className="text-xs text-indigo-400 truncate max-w-xs">{proj.description}</span>}
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_CLS[proj.status]}`}>{STATUS_LBL[proj.status]}</span>
+              <span className="text-xs text-indigo-400 ml-auto">{boardTasks.length} 個子任務</span>
+            </div>
+            {milestones.length > 0 && (
+              <div className="px-6 py-3 border-b border-purple-100 bg-purple-50/40 flex-shrink-0">
+                <p className="text-xs font-semibold text-purple-500 uppercase tracking-wide mb-2">🏁 里程碑</p>
+                <div className="flex gap-3 overflow-x-auto pb-1">
+                  {milestones.map(m => {
+                    const prog = calcProgress(m.id, childrenMap, tasksById)
+                    const descIds = getDescendantIds(m.id, childrenMap)
+                    const hasDelayed = [...descIds].some(id => {
+                      const t = tasksById[id]
+                      return t && t.status !== 'done' && t.deadline && t.deadline < todayStr
+                    })
+                    const msOverdue = m.status !== 'done' && m.deadline && m.deadline < todayStr
+                    const warn = msOverdue || hasDelayed
+                    return (
+                      <div key={m.id} onClick={() => setEditTask(m)}
+                        className={`flex-shrink-0 bg-white border rounded-xl px-3 py-2 min-w-44 cursor-pointer hover:shadow-sm transition-shadow ${warn ? 'border-red-300' : prog === 100 ? 'border-green-300' : 'border-purple-200'}`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{m.title}</span>
+                          {warn && <span className="text-xs text-red-500 flex-shrink-0">⚠</span>}
+                          {!warn && prog === 100 && <span className="text-xs text-green-500 flex-shrink-0">✓</span>}
+                        </div>
+                        {m.deadline && <p className="text-xs text-gray-400 mb-1.5">{m.deadline}{msOverdue ? ' · 已逾期' : ''}</p>}
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${warn ? 'bg-red-400' : prog === 100 ? 'bg-green-500' : 'bg-purple-500'}`} style={{ width: `${prog}%` }} />
+                        </div>
+                        <p className="text-xs text-right mt-0.5 text-gray-400">{prog}%</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {/* Quick create form */}
       {qcOpen && (
@@ -562,7 +673,7 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
       <div className="flex-1 overflow-hidden p-5">
         <div className="flex gap-4 h-full">
           {COLUMNS.map((col) => {
-            const colRoots = roots.filter((t) => t.status === col.id)
+            const colRoots = boardRoots.filter((t) => t.status === col.id)
             return (
               <div
                 key={col.id}
@@ -578,10 +689,10 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
                   <div className="flex items-center gap-2">
                     <h3 className={`font-semibold text-sm ${col.color}`}>{col.label}</h3>
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.countColor}`}>
-                      {tasks.filter((t) => t.status === col.id).length}
+                      {boardTasks.filter((t) => t.status === col.id).length}
                     </span>
                   </div>
-                  {tasks.filter((t) => t.status === col.id).length > 0 && (
+                  {boardTasks.filter((t) => t.status === col.id).length > 0 && (
                     <span className="text-xs text-gray-400">{totalHours(col.id)}h</span>
                   )}
                 </div>

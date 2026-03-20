@@ -56,30 +56,34 @@ router.get('/:id', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { title, description, deadline, estimated_hours, importance, status, tags, parent_id, progress_percent, assignee, progress_note, coordination_note } = req.body;
+  const { title, description, deadline, estimated_hours, importance, status, tags, parent_id, progress_percent, assignee, progress_note, coordination_note, task_type, unplanned } = req.body;
+  const resolvedStatus = status || 'todo';
   const result = db.prepare(`
-    INSERT INTO tasks (title, description, deadline, estimated_hours, importance, status, tags, parent_id, progress_percent, assignee, progress_note, coordination_note)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (title, description, deadline, estimated_hours, importance, status, tags, parent_id, progress_percent, assignee, progress_note, coordination_note, task_type, unplanned, completed_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     title,
     description || '',
     deadline || null,
     estimated_hours || 1,
     importance || 'mid',
-    status || 'todo',
+    resolvedStatus,
     JSON.stringify(tags || []),
     parent_id || null,
     progress_percent || 0,
     assignee || '',
     progress_note || '',
-    coordination_note || ''
+    coordination_note || '',
+    task_type || 'task',
+    unplanned ? 1 : 0,
+    resolvedStatus === 'done' ? db.prepare("SELECT datetime('now', 'localtime')").pluck().get() : null
   );
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid);
   res.json({ ...task, tags: JSON.parse(task.tags || '[]') });
 });
 
 router.put('/:id', (req, res) => {
-  const { title, description, deadline, estimated_hours, importance, status, priority_score, priority_level, tags, parent_id, progress_percent, clear_parent, assignee, progress_note, coordination_note } = req.body;
+  const { title, description, deadline, estimated_hours, importance, status, priority_score, priority_level, tags, parent_id, progress_percent, clear_parent, assignee, progress_note, coordination_note, task_type, unplanned } = req.body;
   db.prepare(`
     UPDATE tasks SET
       title = COALESCE(?, title),
@@ -96,6 +100,13 @@ router.put('/:id', (req, res) => {
       assignee = COALESCE(?, assignee),
       progress_note = COALESCE(?, progress_note),
       coordination_note = COALESCE(?, coordination_note),
+      task_type = COALESCE(?, task_type),
+      unplanned = COALESCE(?, unplanned),
+      completed_at = CASE
+        WHEN COALESCE(?, status) = 'done' THEN COALESCE(completed_at, datetime('now', 'localtime'))
+        WHEN ? IS NOT NULL THEN NULL
+        ELSE completed_at
+      END,
       updated_at = datetime('now', 'localtime')
     WHERE id = ?
   `).run(
@@ -114,6 +125,10 @@ router.put('/:id', (req, res) => {
     assignee ?? null,
     progress_note ?? null,
     coordination_note ?? null,
+    task_type ?? null,
+    unplanned !== undefined ? (unplanned ? 1 : 0) : null,
+    status ?? null,   // CASE: if new status='done' → set completed_at
+    status ?? null,   // CASE: if new status IS NOT NULL and ≠'done' → clear completed_at
     req.params.id
   );
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);

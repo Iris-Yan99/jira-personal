@@ -50,6 +50,8 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     parent_id: task.parent_id || null,
     assignee: task.assignee || '',
     progress_percent: task.progress_percent ?? 0,
+    task_type: task.task_type || 'task',
+    unplanned: task.unplanned === 1 || task.unplanned === true,
   })
 
   // ── Notes tab state ──────────────────────────────────────────
@@ -440,6 +442,9 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                     <option value="in_progress">进行中</option>
                     <option value="done">已完成</option>
                   </select>
+                  {task.completed_at && (
+                    <p className="text-xs text-green-600 mt-1">✓ 完成於 {task.completed_at.slice(0, 10)}</p>
+                  )}
                 </Field>
               </div>
               <Field label="优先级">
@@ -454,6 +459,37 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                   ))}
                 </div>
               </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="任務類型">
+                  <div className="flex gap-2">
+                    {[{ v: 'task', label: '📋 普通任務' }, { v: 'milestone', label: '🏁 里程碑' }].map(({ v, label }) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => set('task_type', v)}
+                        className={`flex-1 py-1.5 text-xs rounded-lg border font-medium transition-all ${
+                          form.task_type === v
+                            ? v === 'milestone' ? 'bg-purple-100 text-purple-700 border-purple-300' : 'bg-blue-100 text-blue-700 border-blue-300'
+                            : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
+                        }`}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="計劃狀態">
+                  <label className="flex items-center gap-2 mt-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.unplanned}
+                      onChange={(e) => set('unplanned', e.target.checked)}
+                      className="w-4 h-4 accent-orange-500"
+                    />
+                    <span className={`text-sm font-medium ${form.unplanned ? 'text-orange-600' : 'text-gray-400'}`}>
+                      📌 計劃外任務
+                    </span>
+                  </label>
+                </Field>
+              </div>
               <Field label="标签（逗号分隔）">
                 <input type="text" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="开发, 会议, 文档" className={inputCls} />
               </Field>

@@ -101,6 +101,16 @@ function runMigrations() {
     db.pragma('user_version = 4');
     console.log('[DB] Migration v4 applied: hours_logged on daily_logs');
   }
+
+  if (version < 5) {
+    db.exec(`
+      ALTER TABLE tasks ADD COLUMN task_type TEXT DEFAULT 'task' CHECK(task_type IN ('task', 'milestone'));
+      ALTER TABLE tasks ADD COLUMN completed_at TEXT;
+      ALTER TABLE tasks ADD COLUMN unplanned INTEGER DEFAULT 0;
+    `);
+    db.pragma('user_version = 5');
+    console.log('[DB] Migration v5 applied: task_type, completed_at, unplanned');
+  }
 }
 
 runMigrations();
