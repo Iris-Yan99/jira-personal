@@ -83,7 +83,7 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { title, description, deadline, estimated_hours, importance, status, priority_score, priority_level, tags, parent_id, progress_percent, clear_parent, assignee, progress_note, coordination_note, task_type, unplanned } = req.body;
+  const { title, description, deadline, estimated_hours, importance, status, priority_score, priority_level, tags, parent_id, progress_percent, clear_parent, assignee, progress_note, coordination_note, task_type, unplanned, completed_at } = req.body;
   db.prepare(`
     UPDATE tasks SET
       title = COALESCE(?, title),
@@ -103,7 +103,7 @@ router.put('/:id', (req, res) => {
       task_type = COALESCE(?, task_type),
       unplanned = COALESCE(?, unplanned),
       completed_at = CASE
-        WHEN COALESCE(?, status) = 'done' THEN COALESCE(completed_at, datetime('now', 'localtime'))
+        WHEN COALESCE(?, status) = 'done' THEN COALESCE(?, completed_at, datetime('now', 'localtime'))
         WHEN ? IS NOT NULL THEN NULL
         ELSE completed_at
       END,
@@ -127,8 +127,9 @@ router.put('/:id', (req, res) => {
     coordination_note ?? null,
     task_type ?? null,
     unplanned !== undefined ? (unplanned ? 1 : 0) : null,
-    status ?? null,   // CASE: if new status='done' → set completed_at
-    status ?? null,   // CASE: if new status IS NOT NULL and ≠'done' → clear completed_at
+    status ?? null,         // CASE: if new status='done' → set completed_at
+    completed_at ?? null,   // explicit override (e.g. retroactive completion date)
+    status ?? null,         // CASE: if new status IS NOT NULL and ≠'done' → clear completed_at
     req.params.id
   );
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);

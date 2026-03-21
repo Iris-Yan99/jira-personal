@@ -350,20 +350,23 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
   // Done completion prompt state
   const [donePrompt, setDonePrompt] = useState(null) // null | { taskId, task, fromCheckbox }
   const [donePromptHours, setDonePromptHours] = useState('')
+  const [donePromptDate, setDonePromptDate] = useState('')
 
   const handleDoneConfirm = async (hours) => {
     const { taskId, task, fromCheckbox } = donePrompt
+    const completionDate = donePromptDate || localDateStr()
     setDonePrompt(null)
     setDonePromptHours('')
-    await api.updateTask(taskId, { status: 'done' })
+    setDonePromptDate('')
+    await api.updateTask(taskId, { status: 'done', completed_at: completionDate })
     await api.createTaskLog({
       task_id: taskId,
-      date: localDateStr(),
+      date: completionDate,
       type: 'status_change',
       content: `状态从「${STATUS_LABEL[task.status]}」变更为「已完成」`,
     })
     if (hours > 0) {
-      await api.quickLog(taskId, hours, '任務完成')
+      await api.quickLog(taskId, hours, '任務完成', completionDate)
     }
     if (fromCheckbox && task.parent_id) {
       const updatedTasks = tasks.map(t => t.id === taskId ? { ...t, status: 'done' } : t)
@@ -780,6 +783,41 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
               <h3 className="text-sm font-semibold text-gray-700 mt-2 truncate px-2">「{donePrompt.task.title}」</h3>
               <p className="text-xs text-gray-400 mt-0.5">這次花了多久？</p>
             </div>
+
+            {/* Completion date selector */}
+            <div className="mb-3">
+              <p className="text-xs text-gray-500 mb-1.5">完成日期</p>
+              <div className="flex gap-1.5 items-center">
+                {(() => {
+                  const today = localDateStr()
+                  const yesterday = (() => {
+                    const d = new Date(); d.setDate(d.getDate() - 1)
+                    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+                  })()
+                  const active = donePromptDate || today
+                  return (
+                    <>
+                      <button
+                        onClick={() => setDonePromptDate('')}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${active === today ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                      >今天</button>
+                      <button
+                        onClick={() => setDonePromptDate(yesterday)}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${active === yesterday ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                      >昨天</button>
+                      <input
+                        type="date"
+                        value={donePromptDate}
+                        max={today}
+                        onChange={e => setDonePromptDate(e.target.value)}
+                        className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 bg-gray-50"
+                      />
+                    </>
+                  )
+                })()}
+              </div>
+            </div>
+
             <div className="grid grid-cols-4 gap-2 mb-3">
               {[0.5, 1, 2, 4].map(h => (
                 <button

@@ -22,12 +22,13 @@ router.post('/', (req, res) => {
 });
 
 router.post('/quick', (req, res) => {
-  const { task_id, hours, note } = req.body;
+  const { task_id, hours, note, date: dateOverride } = req.body;
   if (!task_id || !hours || hours <= 0) {
     return res.status(400).json({ error: 'task_id and hours (> 0) are required' });
   }
   const today = new Date();
-  const date = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const date = (dateOverride && /^\d{4}-\d{2}-\d{2}$/.test(dateOverride)) ? dateOverride : todayStr;
   const result = db.prepare(`
     INSERT INTO daily_logs (task_id, date, progress_percent, note, hours_logged)
     VALUES (?, ?, 0, ?, ?)

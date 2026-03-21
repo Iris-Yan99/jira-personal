@@ -78,8 +78,8 @@ export const api = {
   deleteMember: (id) => request(`/members/${id}`, { method: 'DELETE' }),
 
   // Time tracking
-  quickLog: (taskId, hours, note) =>
-    request('/logs/quick', json({ task_id: taskId, hours, note })),
+  quickLog: (taskId, hours, note, date) =>
+    request('/logs/quick', json({ task_id: taskId, hours, note, date })),
 
   // Dependencies
   addDependency: (taskId, dependsOnId) =>
