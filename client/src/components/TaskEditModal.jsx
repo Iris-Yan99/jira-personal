@@ -92,6 +92,10 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
 
   // Conflict state: null | { reasons, suggestion, suggestedDate, loading }
   const [conflict, setConflict] = useState(null)
+  const [saveError, setSaveError] = useState(null)
+  const [deadlineError, setDeadlineError] = useState(null)
+  const [childDeadlineWarning, setChildDeadlineWarning] = useState([])
+  const [syncParentDeadline, setSyncParentDeadline] = useState(false)
 
   // AI hours estimate state
   const [estimating, setEstimating] = useState(false)
@@ -210,10 +214,34 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
     if (key === 'deadline' || key === 'estimated_hours' || key === 'priority_level') {
       setConflict(null)
     }
+    if (key === 'deadline') {
+      // Check child warning: any direct children with deadline > new value
+      if (val) {
+        const over = tasks.filter(t => t.parent_id === task.id && t.deadline && t.deadline > val)
+        setChildDeadlineWarning(over.map(t => t.title))
+      } else {
+        setChildDeadlineWarning([])
+      }
+      // Check parent constraint: new deadline must not exceed parent's deadline
+      const parentId = form.parent_id
+      if (parentId && val) {
+        const parent = tasks.find(t => t.id === Number(parentId))
+        if (parent?.deadline && val > parent.deadline) {
+          setDeadlineError(`超出父任務截止日期（${parent.deadline}）`)
+        } else {
+          setDeadlineError(null)
+          setSyncParentDeadline(false)
+        }
+      } else {
+        setDeadlineError(null)
+        setSyncParentDeadline(false)
+      }
+    }
   }
 
   const doSave = async () => {
     setSaving(true)
+    setSaveError(null)
     try {
       if (form.status !== task.status) {
         await api.createTaskLog({
@@ -246,6 +274,15 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
         progress_note: progressNote,
         coordination_note: coordinationNote,
       })
+      if (syncParentDeadline && form.parent_id) {
+        await api.updateTask(Number(form.parent_id), { deadline: form.deadline })
+      }
+      setConflict(null)
+      setDeadlineError(null)
+      setSyncParentDeadline(false)
+      setChildDeadlineWarning([])
+    } catch (err) {
+      setSaveError(err.message || '保存失敗，請重試')
     } finally {
       setSaving(false)
     }
@@ -253,6 +290,8 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
 
   const handleSave = async () => {
     if (!form.title.trim()) return
+    // Block save if child deadline exceeds parent and user hasn't opted to sync
+    if (deadlineError && !syncParentDeadline) return
 
     // If conflict already shown and user is clicking save again → means "忽略继续保存"
     if (conflict && !conflict.loading) {
@@ -407,6 +446,25 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
               <div className="grid grid-cols-2 gap-4">
                 <Field label="截止日期">
                   <input type="date" value={form.deadline} onChange={(e) => set('deadline', e.target.value)} className={inputCls} />
+                  {deadlineError && (
+                    <div className="mt-1 space-y-1">
+                      <p className="text-xs text-red-500">{deadlineError}</p>
+                      <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={syncParentDeadline}
+                          onChange={e => setSyncParentDeadline(e.target.checked)}
+                          className="rounded"
+                        />
+                        同步將父任務截止日更新為 {form.deadline}
+                      </label>
+                    </div>
+                  )}
+                  {childDeadlineWarning.length > 0 && (
+                    <p className="mt-1 text-xs text-orange-500">
+                      ⚠️ 以下子任務截止日將超出此日期：{childDeadlineWarning.join('、')}
+                    </p>
+                  )}
                 </Field>
                 <Field label="预估工时 (小时)">
                   <div className="flex gap-1.5">
@@ -601,7 +659,8 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
               <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50">
                 {deleting ? '删除中...' : '🗑 删除'}
               </button>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {saveError && <span className="text-xs text-red-500">{saveError}</span>}
                 <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">取消</button>
                 <button
                   onClick={handleSave}
@@ -648,7 +707,8 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                 />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+              {saveError && <span className="text-xs text-red-500 mr-auto">{saveError}</span>}
               <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">取消</button>
               <button
                 onClick={doSave}

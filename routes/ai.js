@@ -365,6 +365,43 @@ router.post('/conflict-suggest', async (req, res) => {
   const pad = (n) => String(n).padStart(2, '0');
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
 
+  const PRIORITY_RANK = { P1: 4, P2: 3, P3: 2, P4: 1 };
+  const taskRank = PRIORITY_RANK[task.priority_level] || 1;
+
+  // Compute remaining hours for a task
+  function remainingHours(t) {
+    const est = parseFloat(t.estimated_hours) || 1;
+    const pct = parseFloat(t.progress_percent) || 0;
+    return +(est * (1 - pct / 100)).toFixed(1);
+  }
+
+  // Build daily load map: { [dateStr]: { totalRemaining, maxRank } }
+  const dailyLoad = {};
+  (allTasks || [])
+    .filter(t => t.deadline && t.status !== 'done' && t.id !== task.id)
+    .forEach(t => {
+      if (!dailyLoad[t.deadline]) dailyLoad[t.deadline] = { totalRemaining: 0, maxRank: 0 };
+      dailyLoad[t.deadline].totalRemaining = +(dailyLoad[t.deadline].totalRemaining + remainingHours(t)).toFixed(1);
+      dailyLoad[t.deadline].maxRank = Math.max(dailyLoad[t.deadline].maxRank, PRIORITY_RANK[t.priority_level] || 1);
+    });
+
+  // Find nearest free date starting from the day after task.deadline
+  // Free = (existing totalRemaining + newTaskHours) < 10 AND no same/higher priority task
+  let nearestFreeDate = null;
+  const newTaskHours = parseFloat(task.estimated_hours) || 1;
+  const scanStart = new Date(task.deadline);
+  scanStart.setDate(scanStart.getDate() + 1);
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(scanStart);
+    d.setDate(scanStart.getDate() + i);
+    const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const load = dailyLoad[dateStr] || { totalRemaining: 0, maxRank: 0 };
+    if ((load.totalRemaining + newTaskHours) < 10 && load.maxRank < taskRank) {
+      nearestFreeDate = dateStr;
+      break;
+    }
+  }
+
   try {
     const takenDates = [
       ...new Set(
@@ -372,9 +409,11 @@ router.post('/conflict-suggest', async (req, res) => {
           .filter((t) => t.deadline && t.status !== 'done')
           .map((t) => t.deadline)
       ),
-    ]
-      .sort()
-      .join('、') || '无';
+    ].sort().join('、') || '无';
+
+    const freeDateHint = nearestFreeDate
+      ? `经算法计算，最近空余日期为：${nearestFreeDate}（工时充裕且无同级冲突）`
+      : '经算法计算，近期60天内无空余日期';
 
     const prompt = `任务：${task.title}，截止：${task.deadline}，预估：${task.estimated_hours}h，优先级：${task.priority_level || 'P4'}
 
@@ -383,15 +422,14 @@ ${(conflicts || []).map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
 其他任务已占用的截止日期：${takenDates}
 今天：${todayStr}
+${freeDateHint}
 
-请推荐一个调整方案，严格按以下格式输出两行（不要其他内容）：
-建议日期：YYYY-MM-DD
-建议说明：[一句话说明原因]`;
+请严格按以下格式输出两行（不要其他内容）：
+建议日期：${nearestFreeDate || 'N/A'}
+建议说明：[一句话说明原因，如无空余日期则说明建议用户手动调整]`;
 
     const content = await callOllama([{ role: 'user', content: prompt }]);
-    const dateMatch = content.match(/建议日期[：:]\s*(\d{4}-\d{2}-\d{2})/);
-    const suggestedDate = dateMatch ? dateMatch[1] : null;
-    res.json({ suggestion: content, suggestedDate });
+    res.json({ suggestion: content, suggestedDate: nearestFreeDate });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
