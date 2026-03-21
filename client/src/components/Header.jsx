@@ -5,7 +5,7 @@ const TABS = [
   { id: 'settings', label: '设置' },
 ]
 
-export default function Header({ activeTab, setActiveTab, onMorning, onEvening, onPrioritize, isPrioritizing }) {
+export default function Header({ activeTab, setActiveTab, onMorning, onEvening, onPrioritize, isPrioritizing, onBreakdown }) {
   return (
     <header className="bg-white border-b border-gray-200 px-5 h-14 flex items-center justify-between flex-shrink-0 z-10">
       <div className="flex items-center gap-6">
@@ -34,6 +34,12 @@ export default function Header({ activeTab, setActiveTab, onMorning, onEvening, 
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={onBreakdown}
+          className="px-3 py-1.5 text-sm font-medium bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+        >
+          🚀 AI 拆解項目
+        </button>
         <button
           onClick={onPrioritize}
           disabled={isPrioritizing}

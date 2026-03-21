@@ -162,7 +162,7 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
             <span>📅</span>
             <span>{task.deadline}</span>
             {isOverdue && <span>(已逾期)</span>}
-            {!isOverdue && daysLeft !== null && daysLeft <= 7 && (
+            {!isOverdue && daysLeft !== null && daysLeft <= 7 && task.status !== 'done' && (
               <span className="text-orange-500">({daysLeft === 0 ? '今天' : `${daysLeft}天後`})</span>
             )}
           </div>

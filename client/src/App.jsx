@@ -6,6 +6,7 @@ import ReportsView from './components/ReportsView'
 import SettingsView from './components/SettingsView'
 import MorningBriefing from './components/MorningBriefing'
 import EveningReview from './components/EveningReview'
+import ProjectBreakdownModal from './components/ProjectBreakdownModal'
 import { api } from './utils/api'
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
   const [showMorning, setShowMorning] = useState(false)
   const [morningContent, setMorningContent] = useState('')
   const [showEvening, setShowEvening] = useState(false)
+  const [showBreakdown, setShowBreakdown] = useState(false)
 
   const loadTasks = useCallback(async () => {
     try {
@@ -93,6 +95,7 @@ export default function App() {
         onEvening={() => setShowEvening(true)}
         onPrioritize={handlePrioritize}
         isPrioritizing={isPrioritizing}
+        onBreakdown={() => setShowBreakdown(true)}
       />
 
       <main className="flex-1 overflow-hidden">
@@ -119,6 +122,13 @@ export default function App() {
           tasks={eveningTasks}
           onClose={() => setShowEvening(false)}
           onComplete={loadTasks}
+        />
+      )}
+
+      {showBreakdown && (
+        <ProjectBreakdownModal
+          onClose={() => setShowBreakdown(false)}
+          onImported={loadTasks}
         />
       )}
     </div>

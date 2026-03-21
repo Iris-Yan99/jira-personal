@@ -17,7 +17,11 @@
       "Bash(bash .claude/skills/brainstorming/scripts/start-server.sh --project-dir /Users/iris/Desktop/jira-personal)",
       "Bash(git checkout:*)",
       "Bash(bash /Users/iris/Desktop/jira-personal/.claude/skills/brainstorming/scripts/start-server.sh --project-dir /Users/iris/Desktop/jira-personal)",
-      "Bash(node -e \"require\\('./db'\\); console.log\\('ok'\\)\" 2>&1 && sqlite3 data/tasks.db \".schema tasks\" | grep -E \"parent_id|progress_percent\")"
+      "Bash(node -e \"require\\('./db'\\); console.log\\('ok'\\)\" 2>&1 && sqlite3 data/tasks.db \".schema tasks\" | grep -E \"parent_id|progress_percent\")",
+      "Bash(cd /Users/iris/Desktop/jira-personal/client && npx vite build 2>&1 | tail -12)",
+      "Bash(cd /Users/iris/Desktop/jira-personal/client && npx vite build 2>&1 | tail -8)",
+      "Bash(cd /Users/iris/Desktop/jira-personal/client && npx vite build 2>&1 | tail -30)",
+      "Skill(general)"
     ]
   }
 }
