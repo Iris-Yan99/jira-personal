@@ -1,7 +1,14 @@
 const BASE = '/api';
 
+let _onUnauthorized = null;
+export function setUnauthorizedHandler(fn) { _onUnauthorized = fn; }
+
 async function request(url, options = {}) {
-  const res = await fetch(BASE + url, options);
+  const res = await fetch(BASE + url, { credentials: 'include', ...options });
+  if (res.status === 401) {
+    if (_onUnauthorized) _onUnauthorized();
+    throw new Error('Unauthorized');
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || `HTTP ${res.status}`);
@@ -90,4 +97,23 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task_id: taskId, depends_on_id: dependsOnId }),
     }),
+
+  // Auth
+  getMe: () => request('/auth/me'),
+  login: (username, password) =>
+    fetch('/api/auth/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }),
+  logout: () => fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }),
+  createUser: (data) => request('/auth/users', json(data)),
+  getUsers: () => request('/auth/users'),
 };
