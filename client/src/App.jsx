@@ -7,9 +7,28 @@ import SettingsView from './components/SettingsView'
 import MorningBriefing from './components/MorningBriefing'
 import EveningReview from './components/EveningReview'
 import ProjectBreakdownModal from './components/ProjectBreakdownModal'
-import { api } from './utils/api'
+import LoginPage from './pages/LoginPage'
+import UserManageModal from './components/UserManageModal'
+import { useAuth } from './context/AuthContext'
+import { api, setUnauthorizedHandler } from './utils/api'
 
 export default function App() {
+  const { currentUser, setCurrentUser, logout } = useAuth()
+  const [showUserManage, setShowUserManage] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
+
+  // Check auth on startup
+  useEffect(() => {
+    api.getMe()
+      .then((user) => { setCurrentUser(user); setAuthChecked(true) })
+      .catch(() => { setCurrentUser(null); setAuthChecked(true) })
+  }, [])
+
+  // Register 401 handler
+  useEffect(() => {
+    setUnauthorizedHandler(() => { setCurrentUser(null) })
+  }, [])
+
   const [activeTab, setActiveTab] = useState('board')
   const [tasks, setTasks] = useState([])
   const [isPrioritizing, setIsPrioritizing] = useState(false)
@@ -28,8 +47,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    loadTasks()
-  }, [loadTasks])
+    if (currentUser) loadTasks()
+  }, [currentUser, loadTasks])
+
+  if (!authChecked) return null
+
+  if (!currentUser) {
+    return <LoginPage onLogin={(user) => { setCurrentUser(user); setAuthChecked(true) }} />
+  }
 
   const handlePrioritize = async () => {
     if (tasks.length === 0) return
@@ -96,6 +121,9 @@ export default function App() {
         onPrioritize={handlePrioritize}
         isPrioritizing={isPrioritizing}
         onBreakdown={() => setShowBreakdown(true)}
+        currentUser={currentUser}
+        onLogout={logout}
+        onUserManage={() => setShowUserManage(true)}
       />
 
       <main className="flex-1 overflow-hidden">
@@ -131,6 +159,8 @@ export default function App() {
           onImported={loadTasks}
         />
       )}
+
+      {showUserManage && <UserManageModal onClose={() => setShowUserManage(false)} />}
     </div>
   )
 }

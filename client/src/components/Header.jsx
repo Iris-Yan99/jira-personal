@@ -5,7 +5,7 @@ const TABS = [
   { id: 'settings', label: '设置' },
 ]
 
-export default function Header({ activeTab, setActiveTab, onMorning, onEvening, onPrioritize, isPrioritizing, onBreakdown }) {
+export default function Header({ activeTab, setActiveTab, onMorning, onEvening, onPrioritize, isPrioritizing, onBreakdown, currentUser, onLogout, onUserManage }) {
   return (
     <header className="bg-white border-b border-gray-200 px-5 h-14 flex items-center justify-between flex-shrink-0 z-10">
       <div className="flex items-center gap-6">
@@ -59,6 +59,30 @@ export default function Header({ activeTab, setActiveTab, onMorning, onEvening, 
         >
           🌙 晚间复盘
         </button>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-gray-200 mx-1" />
+
+        {/* PM-only: User management */}
+        {currentUser?.role === 'pm' && (
+          <button
+            onClick={onUserManage}
+            className="px-3 py-1.5 text-sm font-medium bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            👥 用戶管理
+          </button>
+        )}
+
+        {/* Current user + logout */}
+        <div className="flex items-center gap-2 pl-1">
+          <span className="text-sm text-gray-600 font-medium">{currentUser?.display_name}</span>
+          <button
+            onClick={onLogout}
+            className="px-2.5 py-1.5 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            登出
+          </button>
+        </div>
       </div>
     </header>
   )
