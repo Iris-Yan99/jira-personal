@@ -38,6 +38,8 @@ export default function ProjectBreakdownModal({ onClose, onImported }) {
   const [error, setError] = useState('')
   const [selected, setSelected] = useState({})
   const [importing, setImporting] = useState(false)
+  const [rawText, setRawText] = useState('')
+  const [userPrompt, setUserPrompt] = useState('')
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -45,6 +47,7 @@ export default function ProjectBreakdownModal({ onClose, onImported }) {
   const runExtraction = async (text) => {
     setStep('parsing')
     setError('')
+    setRawText(text)
     try {
       const meta = await api.extractProjectMeta(text)
       setForm({
@@ -82,7 +85,7 @@ export default function ProjectBreakdownModal({ onClose, onImported }) {
     setError('')
     setStep('loading')
     try {
-      const result = await api.breakdownProject(form)
+      const result = await api.breakdownProject({ ...form, rawContent: rawText, extraInstructions: userPrompt })
       setPlan(result)
       const sel = {}
       result.milestones.forEach((m, mi) => {
@@ -119,6 +122,18 @@ export default function ProjectBreakdownModal({ onClose, onImported }) {
   const handleImport = async () => {
     setImporting(true)
     try {
+      // Create root project task that groups all milestones
+      const rootTask = await api.createTask({
+        title: form.title,
+        description: form.description || '',
+        deadline: form.deadline,
+        estimated_hours: plan.milestones.reduce((s, m) =>
+          s + m.tasks.reduce((ts, t) => ts + (t.estimated_hours || 2), 0), 0),
+        importance: 'high',
+        task_type: 'milestone',
+        status: 'todo',
+        tags: [],
+      })
       for (let mi = 0; mi < plan.milestones.length; mi++) {
         const m = plan.milestones[mi]
         const tasksToImport = m.tasks.filter((_, ti) => selected[mi]?.[ti])
@@ -132,6 +147,7 @@ export default function ProjectBreakdownModal({ onClose, onImported }) {
           task_type: 'milestone',
           status: 'todo',
           tags: [],
+          parent_id: rootTask.id,
         })
         await Promise.all(
           tasksToImport.map((t) =>
@@ -336,6 +352,16 @@ export default function ProjectBreakdownModal({ onClose, onImported }) {
                   value={form.background}
                   onChange={set('background')}
                   placeholder="團隊、資源、限制條件等"
+                />
+              </Field>
+
+              <Field label="補充生成指示（可選）">
+                <textarea
+                  className={`${inputCls} resize-none`}
+                  rows={2}
+                  value={userPrompt}
+                  onChange={(e) => setUserPrompt(e.target.value)}
+                  placeholder="例：請特別關注階段性指標，每個 KPI 做成獨立可驗收任務；里程碑拆得更細..."
                 />
               </Field>
 

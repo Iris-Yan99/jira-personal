@@ -367,6 +367,8 @@ router.post('/conflict-suggest', async (req, res) => {
 
   const PRIORITY_RANK = { P1: 4, P2: 3, P3: 2, P4: 1 };
   const taskRank = PRIORITY_RANK[task.priority_level] || 1;
+  const today2 = new Date();
+  today2.setHours(0, 0, 0, 0);
 
   // Compute remaining hours for a task
   function remainingHours(t) {
@@ -375,28 +377,34 @@ router.post('/conflict-suggest', async (req, res) => {
     return +(est * (1 - pct / 100)).toFixed(1);
   }
 
-  // Build daily load map: { [dateStr]: { totalRemaining, maxRank } }
+  // Build daily load map using daily rate model (parallel project friendly)
+  // daily_rate = remaining_hours / max(1, days_until_deadline)
   const dailyLoad = {};
   (allTasks || [])
     .filter(t => t.deadline && t.status !== 'done' && t.id !== task.id)
     .forEach(t => {
-      if (!dailyLoad[t.deadline]) dailyLoad[t.deadline] = { totalRemaining: 0, maxRank: 0 };
-      dailyLoad[t.deadline].totalRemaining = +(dailyLoad[t.deadline].totalRemaining + remainingHours(t)).toFixed(1);
+      if (!dailyLoad[t.deadline]) dailyLoad[t.deadline] = { totalRate: 0, maxRank: 0 };
+      const d = new Date(t.deadline + 'T00:00:00');
+      const days = Math.max(1, Math.round((d - today2) / 86400000));
+      const rate = +(remainingHours(t) / days).toFixed(2);
+      dailyLoad[t.deadline].totalRate = +(dailyLoad[t.deadline].totalRate + rate).toFixed(2);
       dailyLoad[t.deadline].maxRank = Math.max(dailyLoad[t.deadline].maxRank, PRIORITY_RANK[t.priority_level] || 1);
     });
 
-  // Find nearest free date starting from the day after task.deadline
-  // Free = (existing totalRemaining + newTaskHours) < 10 AND no same/higher priority task
+  // Find nearest free date starting from day after task.deadline
+  // Free = total daily rate (existing + new task) < 8h/day AND no same/higher priority task
   let nearestFreeDate = null;
   const newTaskHours = parseFloat(task.estimated_hours) || 1;
-  const scanStart = new Date(task.deadline);
+  const scanStart = new Date(task.deadline + 'T00:00:00');
   scanStart.setDate(scanStart.getDate() + 1);
   for (let i = 0; i < 60; i++) {
     const d = new Date(scanStart);
     d.setDate(scanStart.getDate() + i);
     const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    const load = dailyLoad[dateStr] || { totalRemaining: 0, maxRank: 0 };
-    if ((load.totalRemaining + newTaskHours) < 10 && load.maxRank < taskRank) {
+    const days = Math.max(1, Math.round((d - today2) / 86400000));
+    const newRate = +(newTaskHours / days).toFixed(2);
+    const load = dailyLoad[dateStr] || { totalRate: 0, maxRank: 0 };
+    if ((load.totalRate + newRate) < 8 && load.maxRank < taskRank) {
       nearestFreeDate = dateStr;
       break;
     }
@@ -437,10 +445,19 @@ ${freeDateHint}
 
 // AI project breakdown: generate milestone + task plan from project goal
 router.post('/breakdown-project', async (req, res) => {
-  const { title, description, deadline, background } = req.body;
+  const { title, description, deadline, background, rawContent, extraInstructions } = req.body;
   if (!title || !deadline) return res.status(400).json({ error: 'title and deadline are required' });
 
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  const rawContentSection = rawContent
+    ? `\n原始文件摘錄（前3000字）：\n${rawContent.slice(0, 3000)}\n`
+    : '';
+
+  const extraSection = extraInstructions?.trim()
+    ? `\n用戶補充要求：${extraInstructions.trim()}\n`
+    : '';
+
   const prompt = `你是一個專業的項目管理顧問。根據以下項目信息，生成詳細的項目計劃，包含里程碑和任務分解。
 
 項目名稱：${title}
@@ -448,13 +465,14 @@ router.post('/breakdown-project', async (req, res) => {
 截止日期：${deadline}
 背景信息：${background || '（未提供）'}
 今天日期：${todayStr}
-
+${rawContentSection}${extraSection}
 請嚴格按以下 JSON 格式輸出（只輸出 JSON，不要任何說明、標記或前綴）：
 {"milestones":[{"title":"里程碑名稱","deadline":"YYYY-MM-DD","description":"里程碑說明","tasks":[{"title":"任務名稱","estimated_hours":4,"importance":"high","description":"任務說明"}]}]}
 
 要求：
 - 生成 3-5 個里程碑，按時間順序排列
 - 每個里程碑 3-6 個任務
+- 如果文件中有具體的階段性指標（KPI、數字目標、驗收標準），請將其作為可量化的驗收任務納入對應里程碑
 - 最後里程碑截止日期 ≤ 項目截止日期 ${deadline}
 - estimated_hours 範圍 1-16
 - importance 只能是 high/mid/low`;
