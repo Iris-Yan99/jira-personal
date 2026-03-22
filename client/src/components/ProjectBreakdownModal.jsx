@@ -252,6 +252,7 @@ export default function ProjectBreakdownModal({ onClose, onImported }) {
                   <p className="text-3xl mb-3">📄</p>
                   <p className="text-sm font-medium text-gray-700">拖放文件到此，或點擊選擇</p>
                   <p className="text-xs text-gray-400 mt-1">支持 PDF / DOCX / TXT / MD，最大 10MB</p>
+                  <p className="text-xs text-gray-300 mt-2">AI 分析文件前 8000 字；如有重要指標在後段，請在下一步「補充生成指示」中說明</p>
                   <input
                     id="doc-file-input"
                     type="file"
@@ -268,7 +269,7 @@ export default function ProjectBreakdownModal({ onClose, onImported }) {
                   <textarea
                     className={inputCls + ' resize-none'}
                     rows={9}
-                    placeholder="將項目實施方案文字貼入此處..."
+                    placeholder="將項目實施方案文字貼入此處（建議不超過 8000 字；超出部分 AI 將不分析）..."
                     value={pasteText}
                     onChange={(e) => setPasteText(e.target.value)}
                   />
