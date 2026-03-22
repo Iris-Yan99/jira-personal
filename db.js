@@ -111,8 +111,32 @@ function runMigrations() {
     db.pragma('user_version = 5');
     console.log('[DB] Migration v5 applied: task_type, completed_at, unplanned');
   }
+
+  if (version < 6) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        username     TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        role         TEXT CHECK(role IN ('pm','member')) DEFAULT 'member',
+        created_at   TEXT DEFAULT (datetime('now','localtime'))
+      );
+    `);
+    db.pragma('user_version = 6');
+    console.log('[DB] Migration v6 applied: users table');
+  }
 }
 
 runMigrations();
+
+// Seed default admin account if no users exist
+const bcrypt = require('bcrypt');
+const userCount = db.prepare('SELECT COUNT(*) as cnt FROM users').get();
+if (userCount.cnt === 0) {
+  const hash = bcrypt.hashSync('admin123', 10);
+  db.prepare(`INSERT INTO users (username, display_name, password_hash, role) VALUES (?, ?, ?, ?)`).run('admin', 'Admin', hash, 'pm');
+  console.log('[DB] Default admin account created — username: admin, password: admin123 (please change!)');
+}
 
 module.exports = db;
