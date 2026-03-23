@@ -32,6 +32,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState('board')
   const [tasks, setTasks] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [isPrioritizing, setIsPrioritizing] = useState(false)
   const [showMorning, setShowMorning] = useState(false)
   const [morningContent, setMorningContent] = useState('')
@@ -121,9 +122,20 @@ export default function App() {
     return new Date(t.completed_at) >= threeMonthsAgo
   })
 
-  const visibleTasks = currentUser?.role === 'member'
+  const roleFiltered = currentUser?.role === 'member'
     ? activeTasks.filter((t) => t.assignee === currentUser.display_name)
     : activeTasks
+
+  const visibleTasks = searchQuery.trim()
+    ? roleFiltered.filter((t) => {
+        const q = searchQuery.toLowerCase()
+        return (
+          t.title?.toLowerCase().includes(q) ||
+          t.description?.toLowerCase().includes(q) ||
+          t.assignee?.toLowerCase().includes(q)
+        )
+      })
+    : roleFiltered
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
@@ -138,6 +150,8 @@ export default function App() {
         currentUser={currentUser}
         onLogout={logout}
         onUserManage={() => setShowUserManage(true)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
 
       <main className="flex-1 overflow-hidden">

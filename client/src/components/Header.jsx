@@ -6,7 +6,7 @@ const TABS = [
   { id: 'settings', label: '设置' },
 ]
 
-export default function Header({ activeTab, setActiveTab, onMorning, onEvening, onPrioritize, isPrioritizing, onBreakdown, currentUser, onLogout, onUserManage }) {
+export default function Header({ activeTab, setActiveTab, onMorning, onEvening, onPrioritize, isPrioritizing, onBreakdown, currentUser, onLogout, onUserManage, searchQuery, onSearchChange }) {
   return (
     <header className="bg-white border-b border-gray-200 px-5 h-14 flex items-center justify-between flex-shrink-0 z-10">
       <div className="flex items-center gap-6">
@@ -35,6 +35,25 @@ export default function Header({ activeTab, setActiveTab, onMorning, onEvening, 
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Search box */}
+        <div className="relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="🔍 搜尋任務..."
+            className="w-48 pl-3 pr-7 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:bg-white transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
         <button
           onClick={onBreakdown}
           className="px-3 py-1.5 text-sm font-medium bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
