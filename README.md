@@ -42,6 +42,51 @@
 - **Docker 沒啟動？** 確認任務欄有鯨魚圖標，且狀態是 "Running"
 - **頁面打不開？** 等多幾分鐘，AI 模型還在下載中
 - **想關閉應用？** 在 Docker Desktop 點 ■ Stop，或在 PowerShell 輸入 `docker compose down`
+- **Docker 報虛擬化錯誤？** 需要在 BIOS 開啟 CPU 虛擬化功能（Intel VT-x / AMD-V）。重啟電腦時按 F2 或 Del 進入 BIOS，找到 Virtualization 選項並開啟，保存後重啟即可
+
+---
+
+## 🍎 macOS 快速安裝教程（給非開發者）
+
+### 第一步：安裝 Docker Desktop
+1. 打開瀏覽器，訪問 https://www.docker.com/products/docker-desktop/
+2. 根據你的 Mac 型號選擇版本下載：
+   - M1/M2/M3/M4 晶片（Apple Silicon）→ 選 "Mac with Apple Chip"
+   - Intel 晶片 → 選 "Mac with Intel Chip"（不確定的話：蘋果菜單 → 關於本機，看「晶片」或「處理器」）
+3. 打開下載的 `.dmg` 文件，把 Docker 拖入 Applications
+4. 打開 Docker Desktop，等待頂部菜單欄出現鯨魚圖標
+5. 首次啟動會要求輸入 Mac 密碼授權，點「確定」
+
+### 第二步：下載 Plano
+1. 打開瀏覽器，訪問 https://github.com/Iris-Yan99/jira-personal
+2. 點擊綠色 "Code" 按鈕 → "Download ZIP"
+3. 解壓到桌面（雙擊 ZIP 文件即可）
+
+### 第三步：啟動應用
+1. 打開「終端機」（Spotlight 搜索 "Terminal" 或在「應用程式 → 工具程式」中找到）
+2. 輸入以下指令（複製貼上）：
+   ```
+   cd ~/Desktop/jira-personal-main
+   docker compose up -d --build
+   ```
+3. 等待約 5-10 分鐘（首次需要下載 AI 模型，約 5GB）
+4. 看到 "Started" 後，打開瀏覽器訪問 http://localhost:3001
+
+### 之後每次使用（不需要終端機）
+
+第一次設定完成後，以後只需要：
+1. 打開 Docker Desktop
+2. 點左側選單 "Containers"
+3. 找到 `jira-personal-main`，點 ▶ **Start**
+4. 打開瀏覽器訪問 http://localhost:3001
+
+關閉時點 ■ **Stop** 即可。
+
+### 常見問題
+- **Docker 沒啟動？** 確認菜單欄有鯨魚圖標，且圖標靜止（轉圈表示還在啟動中）
+- **頁面打不開？** 等多幾分鐘，AI 模型還在下載中
+- **想關閉應用？** 在 Docker Desktop 點 ■ Stop
+- **提示「無法打開，因為無法驗證開發者」？** 前往「系統設置 → 隱私與安全性」，點「仍要打開」即可
 
 ---
 
