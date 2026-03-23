@@ -16,12 +16,14 @@ function checkAssigneePermission(req, res, assignee) {
 router.get('/', (req, res) => {
   const tasks = db.prepare(`
     SELECT t.*,
-      COALESCE(
-        (SELECT l.progress_percent FROM daily_logs l
-         WHERE l.task_id = t.id AND l.progress_percent > 0 ORDER BY l.created_at DESC LIMIT 1),
-        t.progress_percent,
-        0
-      ) AS progress_percent,
+      CASE WHEN t.status = 'done' THEN 100
+           ELSE COALESCE(
+             (SELECT l.progress_percent FROM daily_logs l
+              WHERE l.task_id = t.id AND l.progress_percent > 0 ORDER BY l.created_at DESC LIMIT 1),
+             t.progress_percent,
+             0
+           )
+      END AS progress_percent,
       COALESCE(
         (SELECT SUM(l.hours_logged) FROM daily_logs l WHERE l.task_id = t.id),
         0
@@ -107,6 +109,12 @@ router.put('/:id', (req, res) => {
 
   if (status === 'done') {
     resolvedProgress = 100;
+  } else if (status === 'in_progress' || status === 'todo') {
+    const current = db.prepare('SELECT status FROM tasks WHERE id = ?').get(req.params.id);
+    if (current && current.status === 'done') {
+      // Reverting from done: in_progress → 50%, todo → 0%
+      resolvedProgress = status === 'todo' ? 0 : 50;
+    }
   } else if (progress_percent !== undefined && status === undefined) {
     const current = db.prepare('SELECT status FROM tasks WHERE id = ?').get(req.params.id);
     if (current && current.status === 'done') {
