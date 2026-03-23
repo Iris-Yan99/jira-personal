@@ -28,12 +28,20 @@
 3. 等待約 5-10 分鐘（首次需要下載 AI 模型，約 5GB）
 4. 看到 "Started" 後，打開瀏覽器訪問 http://localhost:3001
 
+### 之後每次使用（不需要 PowerShell）
+
+第一次設定完成後，以後只需要：
+1. 打開 Docker Desktop
+2. 點左側選單 "Containers"
+3. 找到 `jira-personal`，點 ▶ **Start**
+4. 打開瀏覽器訪問 http://localhost:3001
+
+關閉時點 ■ **Stop** 即可，完全不需要命令列。
+
 ### 常見問題
 - **Docker 沒啟動？** 確認任務欄有鯨魚圖標，且狀態是 "Running"
 - **頁面打不開？** 等多幾分鐘，AI 模型還在下載中
-- **想關閉應用？** 在 PowerShell 輸入 `docker compose down`
-
-> 💡 之後每次使用，只需打開 Docker Desktop，再輸入 `docker compose up -d` 即可
+- **想關閉應用？** 在 Docker Desktop 點 ■ Stop，或在 PowerShell 輸入 `docker compose down`
 
 ---
 
