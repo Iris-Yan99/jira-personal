@@ -11,12 +11,7 @@ export default function Header({ activeTab, setActiveTab, onMorning, onEvening, 
   return (
     <header className="bg-white border-b border-gray-200 px-5 h-14 flex items-center justify-between flex-shrink-0 z-10">
       <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm select-none">
-            PL
-          </div>
-          <span className="font-bold text-lg text-gray-900 tracking-tight">Plano</span>
-        </div>
+        <img src="/logo.svg" alt="Plano" className="h-8 select-none" />
 
         <nav className="flex gap-0.5">
           {TABS.filter(tab => !tab.pmOnly || currentUser?.role === 'pm').map((tab) => (
