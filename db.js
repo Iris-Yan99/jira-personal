@@ -139,4 +139,9 @@ if (userCount.cnt === 0) {
   console.log('[DB] Default admin account created — username: admin, password: admin123 (please change!)');
 }
 
+// Sync all users to members table (idempotent — ensures admin and any pre-existing users appear in assignee dropdown)
+db.prepare('SELECT display_name FROM users').all().forEach(({ display_name }) => {
+  db.prepare('INSERT OR IGNORE INTO members (name) VALUES (?)').run(display_name);
+});
+
 module.exports = db;

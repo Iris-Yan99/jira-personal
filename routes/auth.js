@@ -52,6 +52,8 @@ router.post('/users', requireAuth, requirePM, (req, res) => {
       'INSERT INTO users (username, display_name, password_hash, role) VALUES (?, ?, ?, ?)'
     ).run(username, display_name, hash, role === 'pm' ? 'pm' : 'member');
     const created = db.prepare('SELECT id, username, display_name, role FROM users WHERE id = ?').get(result.lastInsertRowid);
+    // Sync to members table so assignee dropdown picks this user up
+    db.prepare('INSERT OR IGNORE INTO members (name) VALUES (?)').run(display_name);
     res.json(created);
   } catch (err) {
     if (err.message.includes('UNIQUE')) {
