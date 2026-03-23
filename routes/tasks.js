@@ -99,6 +99,21 @@ router.put('/:id', (req, res) => {
 
   if (!checkAssigneePermission(req, res, assignee)) return;
 
+  // Auto-sync progress_percent and status:
+  // 1. status → 'done' means progress = 100
+  // 2. progress_percent changes on a currently-done task → derive new status
+  let resolvedStatus = status ?? null;
+  let resolvedProgress = progress_percent ?? null;
+
+  if (status === 'done') {
+    resolvedProgress = 100;
+  } else if (progress_percent !== undefined && status === undefined) {
+    const current = db.prepare('SELECT status FROM tasks WHERE id = ?').get(req.params.id);
+    if (current && current.status === 'done') {
+      resolvedStatus = progress_percent === 0 ? 'todo' : 'in_progress';
+    }
+  }
+
   db.prepare(`
     UPDATE tasks SET
       title = COALESCE(?, title),
@@ -130,21 +145,21 @@ router.put('/:id', (req, res) => {
     deadline ?? null,
     estimated_hours ?? null,
     importance ?? null,
-    status ?? null,
+    resolvedStatus,
     priority_score ?? null,
     priority_level ?? null,
     tags !== undefined ? JSON.stringify(tags) : null,
     clear_parent === true ? 1 : 0,
     parent_id ?? null,
-    progress_percent ?? null,
+    resolvedProgress,
     assignee ?? null,
     progress_note ?? null,
     coordination_note ?? null,
     task_type ?? null,
     unplanned !== undefined ? (unplanned ? 1 : 0) : null,
-    status ?? null,         // CASE: if new status='done' → set completed_at
+    resolvedStatus,         // CASE: if new status='done' → set completed_at
     completed_at ?? null,   // explicit override (e.g. retroactive completion date)
-    status ?? null,         // CASE: if new status IS NOT NULL and ≠'done' → clear completed_at
+    resolvedStatus,         // CASE: if new status IS NOT NULL and ≠'done' → clear completed_at
     req.params.id
   );
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
