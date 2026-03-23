@@ -4,6 +4,7 @@ import KanbanBoard from './components/KanbanBoard'
 import ScheduleView from './components/ScheduleView'
 import ReportsView from './components/ReportsView'
 import SettingsView from './components/SettingsView'
+import GanttView from './components/GanttView'
 import MorningBriefing from './components/MorningBriefing'
 import EveningReview from './components/EveningReview'
 import ProjectBreakdownModal from './components/ProjectBreakdownModal'
@@ -135,6 +136,7 @@ export default function App() {
           <KanbanBoard tasks={visibleTasks} onTasksChange={loadTasks} />
         )}
         {activeTab === 'schedule' && <ScheduleView tasks={visibleTasks} />}
+        {activeTab === 'gantt' && <GanttView tasks={visibleTasks} currentUser={currentUser} />}
         {activeTab === 'reports' && <ReportsView tasks={tasks} />}
         {activeTab === 'settings' && <SettingsView />}
       </main>

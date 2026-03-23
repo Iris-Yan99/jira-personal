@@ -1,6 +1,7 @@
 const TABS = [
   { id: 'board', label: '看板' },
   { id: 'schedule', label: '日程' },
+  { id: 'gantt', label: '甘特圖' },
   { id: 'reports', label: '报告' },
   { id: 'settings', label: '设置' },
 ]
