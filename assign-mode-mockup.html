@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>任務分配模式 — 方案對比</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang TC', sans-serif; background: #f1f5f9; color: #1e293b; }
+
+  .page-title { text-align: center; padding: 32px 0 8px; font-size: 22px; font-weight: 700; color: #0f172a; }
+  .page-sub   { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 32px; }
+
+  .tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 32px; }
+  .tab { padding: 8px 24px; border-radius: 999px; border: 2px solid #e2e8f0; background: white; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; color: #64748b; }
+  .tab.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+
+  .panel { display: none; max-width: 960px; margin: 0 auto 48px; padding: 0 24px; }
+  .panel.active { display: block; }
+
+  .option-label { display: inline-block; background: #3b82f6; color: white; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 4px; margin-bottom: 12px; letter-spacing: .05em; }
+  .option-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .option-desc  { color: #64748b; font-size: 14px; margin-bottom: 20px; }
+
+  /* ── Mockup shell ── */
+  .shell { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.12); border: 1px solid #e2e8f0; background: white; }
+  .shell-bar { background: white; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+  .shell-logo { width: 28px; height: 28px; border-radius: 6px; background: #3b82f6; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; }
+  .shell-nav { display: flex; gap: 2px; }
+  .shell-nav span { padding: 4px 12px; border-radius: 6px; font-size: 13px; color: #64748b; }
+  .shell-nav span.on { background: #eff6ff; color: #3b82f6; font-weight: 600; }
+  .shell-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .btn { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; }
+  .btn-primary { background: #3b82f6; color: white; }
+  .btn-green   { background: #dcfce7; color: #16a34a; }
+  .btn-gray    { background: #f1f5f9; color: #475569; }
+  .btn-assign  { background: #f0fdf4; color: #15803d; border: 1.5px solid #86efac; }
+
+  /* ── Option A — 分配模式 overlay ── */
+  .board-cols { display: flex; gap: 12px; padding: 16px; background: #f8fafc; min-height: 280px; }
+  .col { flex: 1; background: #f1f5f9; border-radius: 8px; padding: 10px; }
+  .col-head { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .card { background: white; border-radius: 8px; border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 8px; font-size: 13px; position: relative; }
+  .card.selected { border-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
+  .card-check { position: absolute; top: 8px; right: 8px; width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 4px; background: white; }
+  .card-check.on { background: #3b82f6; border-color: #3b82f6; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; }
+  .assign-bar { padding: 12px 16px; border-top: 1px solid #e2e8f0; background: #eff6ff; display: flex; align-items: center; gap: 12px; }
+  .member-pill { padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid #bfdbfe; background: white; color: #3b82f6; }
+  .member-pill.on { background: #3b82f6; color: white; border-color: #3b82f6; }
+  .assign-hint { font-size: 12px; color: #3b82f6; font-weight: 500; }
+  .sel-count { font-size: 12px; font-weight: 700; color: #3b82f6; background: #dbeafe; padding: 3px 8px; border-radius: 4px; }
+
+  /* ── Option B — inline hover ── */
+  .card-b { background: white; border-radius: 8px; border: 1px solid #e2e8f0; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; }
+  .card-b-row { display: flex; align-items: center; gap-8px; }
+  .card-b-title { flex: 1; font-size: 13px; color: #1e293b; }
+  .assignee-badge { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #64748b; padding: 3px 8px; border-radius: 999px; background: #f1f5f9; cursor: pointer; transition: background .12s; }
+  .assignee-badge:hover { background: #dbeafe; color: #3b82f6; }
+  .assignee-badge.unassigned { color: #94a3b8; background: #f8fafc; border: 1px dashed #cbd5e1; }
+  .mini-dropdown { position: absolute; right: 0; top: 28px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 10; min-width: 140px; padding: 4px; }
+  .mini-item { padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; color: #374151; }
+  .mini-item:hover { background: #eff6ff; color: #3b82f6; }
+  .pos-rel { position: relative; }
+
+  /* ── Option C — workload view ── */
+  .workload-layout { display: flex; min-height: 300px; }
+  .wl-left { width: 200px; border-right: 1px solid #e2e8f0; background: #fafafa; padding: 12px; flex-shrink: 0; }
+  .wl-right { flex: 1; padding: 12px; background: #f8fafc; overflow: hidden; }
+  .member-card { padding: 10px; border-radius: 8px; border: 2px solid transparent; margin-bottom: 8px; background: white; cursor: pointer; transition: all .12s; }
+  .member-card.active { border-color: #3b82f6; background: #eff6ff; }
+  .member-name { font-size: 13px; font-weight: 600; color: #1e293b; }
+  .member-load { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .load-bar { height: 4px; border-radius: 999px; background: #e2e8f0; margin-top: 4px; overflow: hidden; }
+  .load-fill { height: 100%; border-radius: 999px; background: #3b82f6; }
+  .load-fill.over { background: #ef4444; }
+  .wl-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; margin-bottom: 8px; }
+  .task-pool { display: flex; flex-wrap: wrap; gap: 8px; }
+  .task-chip { padding: 6px 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #374151; cursor: grab; transition: box-shadow .1s; }
+  .task-chip:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); border-color: #93c5fd; }
+  .task-chip.dragging { box-shadow: 0 4px 16px rgba(59,130,246,.3); border-color: #3b82f6; }
+  .drop-zone { min-height: 80px; border: 2px dashed #bfdbfe; border-radius: 8px; padding: 10px; margin-top: 10px; background: #eff6ff; display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; align-content: flex-start; }
+  .drop-label { width: 100%; font-size: 11px; color: #93c5fd; font-weight: 600; }
+
+  .pros-cons { display: flex; gap: 12px; margin-top: 16px; }
+  .pros, .cons { flex: 1; padding: 12px; border-radius: 8px; font-size: 13px; }
+  .pros { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .cons { background: #fff7ed; border: 1px solid #fed7aa; }
+  .pros h4 { color: #16a34a; margin-bottom: 6px; font-size: 12px; font-weight: 700; }
+  .cons h4 { color: #ea580c; margin-bottom: 6px; font-size: 12px; font-weight: 700; }
+  .pros li, .cons li { color: #374151; margin-left: 14px; margin-bottom: 3px; }
+  .rec-badge { display: inline-block; background: #fef3c7; color: #b45309; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<div class="page-title">PM 快速分配任務 — 三種方案</div>
+<div class="page-sub">點擊分頁查看每種方案的樣子</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="show('a')">A — 分配模式</button>
+  <button class="tab" onclick="show('b')">B — Hover 內嵌選人</button>
+  <button class="tab" onclick="show('c')">C — 工作量視圖 <span class="rec-badge">推薦</span></button>
+</div>
+
+<!-- ═══ OPTION A ═══ -->
+<div class="panel active" id="panel-a">
+  <div class="option-label">方案 A</div>
+  <div class="option-title">分配模式（Batch Select）</div>
+  <div class="option-desc">看板右上角「開始分配」按鈕 → 進入多選模式 → 勾任務 → 底部 bar 點選人員一鍵批量指派</div>
+
+  <div class="shell">
+    <div class="shell-bar">
+      <div class="shell-logo">MJ</div>
+      <div class="shell-nav">
+        <span class="on">看板</span>
+        <span>日程</span>
+        <span>甘特圖</span>
+      </div>
+      <div class="shell-right">
+        <button class="btn btn-assign">✓ 分配模式</button>
+        <button class="btn btn-gray">⚡ 快速創建</button>
+      </div>
+    </div>
+
+    <!-- 分配提示 banner -->
+    <div style="background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:8px 16px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:12px;color:#3b82f6;font-weight:600">📋 分配模式已開啟 — 勾選任務後，點擊下方組員即可批量指派</span>
+      <span class="sel-count">已選 2 個</span>
+      <button class="btn btn-gray" style="margin-left:auto;font-size:11px">退出分配模式</button>
+    </div>
+
+    <div class="board-cols">
+      <!-- 待辦列 -->
+      <div class="col">
+        <div class="col-head"><span>待辦 <b>4</b></span></div>
+        <div class="card selected">
+          <div class="card-check on">✓</div>
+          <div style="font-size:13px;font-weight:600;padding-right:20px">登入頁面重構</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">截止 12/31 · P2</div>
+          <div style="font-size:11px;color:#94a3b8">👤 未指派</div>
+        </div>
+        <div class="card selected">
+          <div class="card-check on">✓</div>
+          <div style="font-size:13px;font-weight:600;padding-right:20px">API 文檔撰寫</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">截止 01/05 · P3</div>
+          <div style="font-size:11px;color:#94a3b8">👤 未指派</div>
+        </div>
+        <div class="card">
+          <div class="card-check"></div>
+          <div style="font-size:13px;font-weight:600;padding-right:20px">單元測試補全</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">截止 01/10 · P3</div>
+          <div style="font-size:11px;color:#64748b">👤 Alice</div>
+        </div>
+      </div>
+      <!-- 進行中列 -->
+      <div class="col">
+        <div class="col-head"><span>進行中 <b>2</b></span></div>
+        <div class="card">
+          <div class="card-check"></div>
+          <div style="font-size:13px;font-weight:600;padding-right:20px">後台管理介面</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">截止 12/28 · P1</div>
+          <div style="font-size:11px;color:#64748b">👤 Bob</div>
+        </div>
+      </div>
+      <!-- 已完成列 -->
+      <div class="col">
+        <div class="col-head"><span>已完成 <b>1</b></span></div>
+        <div class="card" style="opacity:.6">
+          <div class="card-check"></div>
+          <div style="font-size:13px;font-weight:600;text-decoration:line-through;color:#94a3b8">需求文件</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部分配 bar -->
+    <div class="assign-bar">
+      <span class="assign-hint">指派給：</span>
+      <button class="member-pill on">👤 Alice</button>
+      <button class="member-pill">👤 Bob</button>
+      <button class="member-pill">👤 Carol</button>
+      <button class="member-pill">👤 David</button>
+      <span style="margin-left:auto;font-size:12px;color:#64748b">點選人員即批量指派已選 2 個任務</span>
+    </div>
+  </div>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>✅ 優點</h4>
+      <ul>
+        <li>批次操作，一次分配多個任務</li>
+        <li>明確的「分配模式」，操作不會誤觸</li>
+        <li>不破壞現有看板 UI</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>⚠️ 缺點</h4>
+      <ul>
+        <li>需要進入/退出模式，多一步</li>
+        <li>不能邊看工作量邊分配</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ OPTION B ═══ -->
+<div class="panel" id="panel-b">
+  <div class="option-label">方案 B</div>
+  <div class="option-title">Hover 內嵌選人（Inline Assign）</div>
+  <div class="option-desc">卡片 hover 時，負責人區域變成可點的 dropdown，直接在卡片上換人，無需開彈窗</div>
+
+  <div class="shell">
+    <div class="shell-bar">
+      <div class="shell-logo">MJ</div>
+      <div class="shell-nav">
+        <span class="on">看板</span>
+        <span>日程</span>
+        <span>甘特圖</span>
+      </div>
+      <div class="shell-right">
+        <button class="btn btn-gray">⚡ 快速創建</button>
+      </div>
+    </div>
+
+    <div class="board-cols">
+      <div class="col">
+        <div class="col-head"><span>待辦 <b>3</b></span></div>
+
+        <!-- 正常卡片 -->
+        <div class="card-b" style="margin-bottom:8px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">後台管理介面</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:11px;color:#94a3b8">截止 12/28 · P1</span>
+            <div class="assignee-badge">👤 Bob</div>
+          </div>
+        </div>
+
+        <!-- Hover 狀態卡片（顯示 dropdown） -->
+        <div class="card-b pos-rel" style="margin-bottom:8px;border-color:#93c5fd;box-shadow:0 0 0 2px #bfdbfe">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">登入頁面重構</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:11px;color:#94a3b8">截止 12/31 · P2</span>
+            <div class="assignee-badge unassigned" style="border-color:#3b82f6;color:#3b82f6;background:#eff6ff">
+              ＋ 指派成員 ▾
+            </div>
+          </div>
+          <!-- Dropdown -->
+          <div class="mini-dropdown" style="right:0;top:auto;bottom:-110px">
+            <div class="mini-item" style="font-size:11px;font-weight:700;color:#94a3b8;cursor:default">指派給</div>
+            <div class="mini-item">👤 Alice</div>
+            <div class="mini-item" style="background:#eff6ff;color:#3b82f6;">👤 Bob  ← 點擊選人</div>
+            <div class="mini-item">👤 Carol</div>
+            <div class="mini-item">👤 David</div>
+          </div>
+        </div>
+
+        <div class="card-b" style="margin-bottom:8px;margin-top:80px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">API 文檔撰寫</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:11px;color:#94a3b8">截止 01/05 · P3</span>
+            <div class="assignee-badge unassigned">＋ 未指派</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="col-head"><span>進行中 <b>1</b></span></div>
+        <div class="card-b">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">需求分析</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:11px;color:#94a3b8">截止 12/25 · P1</span>
+            <div class="assignee-badge">👤 Carol</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="col-head"><span>已完成 <b>1</b></span></div>
+        <div class="card-b" style="opacity:.5">
+          <div style="font-size:13px;font-weight:600;text-decoration:line-through;color:#94a3b8">需求文件</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>✅ 優點</h4>
+      <ul>
+        <li>最快，不用切換模式</li>
+        <li>改動最小，嵌入現有 UI</li>
+        <li>單任務指派很流暢</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>⚠️ 缺點</h4>
+      <ul>
+        <li>一次只能改一個任務</li>
+        <li>看不到組員整體工作量</li>
+        <li>任務多時仍需翻看每張卡片</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ OPTION C ═══ -->
+<div class="panel" id="panel-c">
+  <div class="option-label">方案 C  ★ 推薦</div>
+  <div class="option-title">工作量視圖（Workload Board）</div>
+  <div class="option-desc">新的 tab 頁面：左側組員清單 + 工作量條，右側任務池（未指派）＋ 各人的任務欄，拖拉指派</div>
+
+  <div class="shell">
+    <div class="shell-bar">
+      <div class="shell-logo">MJ</div>
+      <div class="shell-nav">
+        <span>看板</span>
+        <span>日程</span>
+        <span>甘特圖</span>
+        <span class="on">👥 工作量</span>
+        <span>报告</span>
+      </div>
+      <div class="shell-right">
+        <span style="font-size:12px;color:#64748b">拖拉任務到組員欄位即可分配</span>
+      </div>
+    </div>
+
+    <div class="workload-layout">
+      <!-- 左側組員列表 -->
+      <div class="wl-left">
+        <div class="wl-section-title">組員工作量</div>
+
+        <div class="member-card active">
+          <div class="member-name">👤 Alice</div>
+          <div class="member-load">4 個任務 · 16h</div>
+          <div class="load-bar"><div class="load-fill" style="width:65%"></div></div>
+        </div>
+
+        <div class="member-card">
+          <div class="member-name">👤 Bob</div>
+          <div class="member-load">6 個任務 · 28h</div>
+          <div class="load-bar"><div class="load-fill over" style="width:95%"></div></div>
+        </div>
+
+        <div class="member-card">
+          <div class="member-name">👤 Carol</div>
+          <div class="member-load">2 個任務 · 8h</div>
+          <div class="load-bar"><div class="load-fill" style="width:30%"></div></div>
+        </div>
+
+        <div class="member-card">
+          <div class="member-name">👤 David</div>
+          <div class="member-load">1 個任務 · 4h</div>
+          <div class="load-bar"><div class="load-fill" style="width:15%"></div></div>
+        </div>
+      </div>
+
+      <!-- 右側任務池 + 各人欄 -->
+      <div class="wl-right">
+        <div style="display:flex;gap:16px;height:100%">
+
+          <!-- 未指派任務池 -->
+          <div style="width:200px;flex-shrink:0">
+            <div class="wl-section-title">未指派任務 (5)</div>
+            <div class="task-pool" style="flex-direction:column">
+              <div class="task-chip dragging">🔴 登入頁面重構<br><span style="color:#94a3b8;font-size:10px">P2 · 截止 12/31 · 4h</span></div>
+              <div class="task-chip">API 文檔撰寫<br><span style="color:#94a3b8;font-size:10px">P3 · 截止 01/05 · 3h</span></div>
+              <div class="task-chip">單元測試補全<br><span style="color:#94a3b8;font-size:10px">P3 · 截止 01/10 · 6h</span></div>
+              <div class="task-chip">UI 細節調整<br><span style="color:#94a3b8;font-size:10px">P4 · 截止 01/15 · 2h</span></div>
+              <div class="task-chip">部署腳本更新<br><span style="color:#94a3b8;font-size:10px">P2 · 截止 12/30 · 2h</span></div>
+            </div>
+          </div>
+
+          <!-- Alice 的欄位（選中） -->
+          <div style="flex:1">
+            <div class="wl-section-title" style="color:#3b82f6">👤 Alice 的任務</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+              <div class="task-chip" style="border-color:#93c5fd">後台管理介面<br><span style="color:#94a3b8;font-size:10px">進行中 · P1 · 截止 12/28</span></div>
+              <div class="task-chip" style="border-color:#93c5fd">需求分析<br><span style="color:#94a3b8;font-size:10px">進行中 · P1 · 截止 12/25</span></div>
+            </div>
+            <!-- 拖放區 -->
+            <div class="drop-zone">
+              <div class="drop-label">⬆ 拖拉任務到這裡分配給 Alice</div>
+              <div class="task-chip dragging" style="border-color:#3b82f6;background:#eff6ff;color:#3b82f6">🔴 登入頁面重構</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>✅ 優點</h4>
+      <ul>
+        <li>看工作量同時分配，避免過載</li>
+        <li>全局視角，未指派任務一目瞭然</li>
+        <li>拖拉直覺，體驗最好</li>
+        <li>可同時對多人分配</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>⚠️ 缺點</h4>
+      <ul>
+        <li>工程量最大（新 tab + 拖拉）</li>
+        <li>僅 PM 可見（需做角色控制）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.getElementById('panel-' + id).classList.add('active')
+  event.target.classList.add('active')
+}
+</script>
+</body>
+</html>

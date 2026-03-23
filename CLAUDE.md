@@ -14,7 +14,7 @@ Use the skills in `.claude/skills/` for all tasks. Start with `/core/router` if 
 
 ---
 
-## Project: MyJira
+## Project: Plano
 
 AI-powered personal task management. React + Vite frontend, Express backend, SQLite database, Ollama local LLM.
 

@@ -1,4 +1,4 @@
-# MyJira — 个人任务管理
+# Plano
 
 基于 AI 的个人任务管理 Web 应用。技术栈：React + Vite + Tailwind（前端）、Node.js + Express（后端）、SQLite（数据库）、Ollama（本地 AI）。
 

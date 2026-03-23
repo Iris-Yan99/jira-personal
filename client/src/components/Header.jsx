@@ -13,9 +13,9 @@ export default function Header({ activeTab, setActiveTab, onMorning, onEvening, 
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm select-none">
-            MJ
+            PL
           </div>
-          <span className="font-bold text-lg text-gray-900 tracking-tight">MyJira</span>
+          <span className="font-bold text-lg text-gray-900 tracking-tight">Plano</span>
         </div>
 
         <nav className="flex gap-0.5">
