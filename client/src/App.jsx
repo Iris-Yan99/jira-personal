@@ -34,7 +34,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('board')
   const [tasks, setTasks] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [isPrioritizing, setIsPrioritizing] = useState(false)
   const [showMorning, setShowMorning] = useState(false)
   const [morningContent, setMorningContent] = useState('')
   const [showEvening, setShowEvening] = useState(false)
@@ -59,29 +58,7 @@ export default function App() {
     return <LoginPage onLogin={(user) => { setCurrentUser(user); setAuthChecked(true) }} />
   }
 
-  const handlePrioritize = async () => {
-    if (tasks.length === 0) return
-    setIsPrioritizing(true)
-    try {
-      const { priorities } = await api.prioritize(tasks)
-      await Promise.all(
-        priorities.map((p) =>
-          api.updateTask(p.id, {
-            priority_score: p.priority_score,
-            priority_level: p.priority_level,
-          })
-        )
-      )
-      await loadTasks()
-    } catch (err) {
-      console.error('Prioritize failed:', err)
-      alert('AI 优先级排序失败：' + err.message)
-    } finally {
-      setIsPrioritizing(false)
-    }
-  }
-
-  const handleMorning = async () => {
+const handleMorning = async () => {
     setShowMorning(true)
     setMorningContent('')
     try {
@@ -145,8 +122,6 @@ export default function App() {
         setActiveTab={setActiveTab}
         onMorning={handleMorning}
         onEvening={() => setShowEvening(true)}
-        onPrioritize={handlePrioritize}
-        isPrioritizing={isPrioritizing}
         onBreakdown={() => setShowBreakdown(true)}
         currentUser={currentUser}
         onLogout={logout}

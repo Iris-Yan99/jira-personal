@@ -7,7 +7,7 @@ const TABS = [
   { id: 'settings', label: '设置' },
 ]
 
-export default function Header({ activeTab, setActiveTab, onMorning, onEvening, onPrioritize, isPrioritizing, onBreakdown, currentUser, onLogout, onUserManage, searchQuery, onSearchChange }) {
+export default function Header({ activeTab, setActiveTab, onMorning, onEvening, onBreakdown, currentUser, onLogout, onUserManage, searchQuery, onSearchChange }) {
   return (
     <header className="bg-white border-b border-gray-200 px-5 h-14 flex items-center justify-between flex-shrink-0 z-10">
       <div className="flex items-center gap-6">
@@ -61,14 +61,7 @@ export default function Header({ activeTab, setActiveTab, onMorning, onEvening, 
         >
           🚀 AI 拆解項目
         </button>
-        <button
-          onClick={onPrioritize}
-          disabled={isPrioritizing}
-          className="px-3 py-1.5 text-sm font-medium bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isPrioritizing ? '⏳ 排序中...' : '🤖 AI 重排优先级'}
-        </button>
-        <button
+<button
           onClick={onMorning}
           className="px-3 py-1.5 text-sm font-medium bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
         >
