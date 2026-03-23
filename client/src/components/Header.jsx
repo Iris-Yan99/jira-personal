@@ -2,6 +2,7 @@ const TABS = [
   { id: 'board', label: '看板' },
   { id: 'schedule', label: '日程' },
   { id: 'gantt', label: '甘特圖' },
+  { id: 'workload', label: '👥 工作量', pmOnly: true },
   { id: 'reports', label: '报告' },
   { id: 'settings', label: '设置' },
 ]
@@ -18,7 +19,7 @@ export default function Header({ activeTab, setActiveTab, onMorning, onEvening, 
         </div>
 
         <nav className="flex gap-0.5">
-          {TABS.map((tab) => (
+          {TABS.filter(tab => !tab.pmOnly || currentUser?.role === 'pm').map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
