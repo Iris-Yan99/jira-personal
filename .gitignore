@@ -6,3 +6,9 @@ data/
 *.db
 dist/
 client/dist/
+.claude/
+.claude.backup/
+docs/cards/
+docs/prds/
+docs/stories/
+docs/superpowers/
