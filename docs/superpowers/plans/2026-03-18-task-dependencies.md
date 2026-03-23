@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a blocked-by dependency graph to MyJira so tasks can declare predecessors; blocked tasks show a yellow-bordered card with estimated unlock date on the kanban.
+**Goal:** Add a blocked-by dependency graph to Plano so tasks can declare predecessors; blocked tasks show a yellow-bordered card with estimated unlock date on the kanban.
 
 **Architecture:** Junction table `task_dependencies` stores directed dependency edges. Blocked state is derived at render time (`task.blockers.some(b => b.status !== 'done')`) — no stored status column. GET /tasks enriches each task with a `blockers` array. Frontend syncs dependency changes on modal save via POST/DELETE `/api/dependencies`.
 

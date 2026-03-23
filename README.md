@@ -147,3 +147,10 @@ server {
     }
 }
 ```
+
+---
+
+## License
+
+© 2026 Iris Labs. All rights reserved.
+Built by Iris.

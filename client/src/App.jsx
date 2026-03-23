@@ -167,6 +167,10 @@ const handleMorning = async () => {
       )}
 
       {showUserManage && <UserManageModal onClose={() => setShowUserManage(false)} />}
+
+      <footer className="flex-shrink-0 text-center text-xs text-gray-300 py-1.5 bg-white border-t border-gray-100">
+        © 2026 Iris Labs. All rights reserved.
+      </footer>
     </div>
   )
 }

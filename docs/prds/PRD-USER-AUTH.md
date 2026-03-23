@@ -27,7 +27,7 @@ verification:
 
 ## 目標
 
-為 MyJira 加入多用戶支持基礎：登入/登出、cookie session、PM 建立帳號、初始 admin 帳號。
+為 Plano 加入多用戶支持基礎：登入/登出、cookie session、PM 建立帳號、初始 admin 帳號。
 
 ## 範圍（本 PRD 只做這些）
 
