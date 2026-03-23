@@ -111,6 +111,10 @@ export default function App() {
     })
   })()
 
+  const visibleTasks = currentUser?.role === 'member'
+    ? tasks.filter((t) => t.assignee === currentUser.display_name)
+    : tasks
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
       <Header
@@ -128,9 +132,9 @@ export default function App() {
 
       <main className="flex-1 overflow-hidden">
         {activeTab === 'board' && (
-          <KanbanBoard tasks={tasks} onTasksChange={loadTasks} />
+          <KanbanBoard tasks={visibleTasks} onTasksChange={loadTasks} />
         )}
-        {activeTab === 'schedule' && <ScheduleView tasks={tasks} />}
+        {activeTab === 'schedule' && <ScheduleView tasks={visibleTasks} />}
         {activeTab === 'reports' && <ReportsView tasks={tasks} />}
         {activeTab === 'settings' && <SettingsView />}
       </main>
