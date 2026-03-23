@@ -61,7 +61,8 @@ function fmtH(h) {
 }
 
 // ─── TaskTreeNode ────────────────────────────────────────────────────────────
-function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onToggle, onLeafDone, onOpenEdit, onDragStart, quickLogTaskId, onQuickLogOpen, qlHours, setQlHours, qlNote, setQlNote, qlSubmitting, handleQuickLog }) {
+// @card CARD-UX-001
+function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onToggle, onLeafDone, onOpenEdit, onDragStart, quickLogTaskId, onQuickLogOpen, qlHours, setQlHours, qlNote, setQlNote, qlSubmitting, handleQuickLog, onAddChild }) {
   const children = childrenMap[task.id] || []
   const hasChildren = children.length > 0
   const isExpanded = expandedIds.has(task.id)
@@ -154,6 +155,11 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
               {isExpanded ? '▲ 收起' : `▼ ${children.length}子任務`}
             </button>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onAddChild(task.id) }}
+            title="新增子任務"
+            className="flex-shrink-0 text-xs text-gray-400 hover:text-green-600 hover:bg-green-50 px-1 py-0.5 rounded transition-colors"
+          >＋</button>
         </div>
 
         {/* Deadline */}
@@ -284,6 +290,7 @@ function TaskTreeNode({ task, childrenMap, tasksById, depth, expandedIds, onTogg
               setQlNote={setQlNote}
               qlSubmitting={qlSubmitting}
               handleQuickLog={handleQuickLog}
+              onAddChild={onAddChild}
             />
           ))}
         </div>
@@ -757,6 +764,7 @@ export default function KanbanBoard({ tasks, onTasksChange }) {
                       setQlNote={setQlNote}
                       qlSubmitting={qlSubmitting}
                       handleQuickLog={handleQuickLog}
+                      onAddChild={(parentId) => { setQcParentId(parentId); setQcOpen(true); setExpandedIds(prev => { const n = new Set(prev); n.add(parentId); return n }) }}
                     />
                   ))}
                   {colRoots.length === 0 && (

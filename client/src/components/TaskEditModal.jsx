@@ -4,6 +4,128 @@ import { detectConflicts } from '../utils/conflicts'
 import { buildTree, getDescendantIds } from '../utils/taskTree'
 import { useAuth } from '../context/AuthContext'
 
+// @card CARD-UX-001
+function BlockerSearchInput({ tasks, excludeIds = new Set(), onAdd }) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase()
+    return tasks
+      .filter(t => !excludeIds.has(t.id))
+      .filter(t => !q || t.title.toLowerCase().includes(q))
+      .slice(0, 20)
+  }, [tasks, query, excludeIds])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={e => { setQuery(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        placeholder="搜尋前置任務..."
+        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-gray-50 focus:bg-white transition-colors"
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {filtered.map(t => (
+            <div
+              key={t.id}
+              onMouseDown={() => { onAdd(t.id); setQuery(''); setOpen(false) }}
+              className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 text-gray-700 truncate"
+            >
+              {t.title}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TaskSearchSelect({ tasks, value, onChange, placeholder, excludeIds = new Set() }) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  const selected = tasks.find(t => t.id === value)
+  const displayText = selected ? selected.title : ''
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase()
+    return tasks
+      .filter(t => !excludeIds.has(t.id))
+      .filter(t => !q || t.title.toLowerCase().includes(q))
+      .slice(0, 20)
+  }, [tasks, query, excludeIds])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handleSelect = (id) => {
+    onChange(id)
+    setQuery('')
+    setOpen(false)
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="flex gap-1">
+        <input
+          type="text"
+          value={open ? query : displayText}
+          onChange={e => { setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => { setQuery(''); setOpen(true) }}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-gray-50 focus:bg-white transition-colors"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => { onChange(null); setQuery(''); setOpen(false) }}
+            className="px-2 text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg bg-gray-50 text-sm transition-colors"
+            title="清除"
+          >×</button>
+        )}
+      </div>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+          <div
+            className="px-3 py-2 text-sm text-gray-400 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+            onMouseDown={() => handleSelect(null)}
+          >— 無（頂層任務）—</div>
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-gray-400">無符合結果</div>
+          ) : (
+            filtered.map(t => (
+              <div
+                key={t.id}
+                onMouseDown={() => handleSelect(t.id)}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 truncate ${t.id === value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
+              >
+                {t.title}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const PRIORITY_COLORS = {
   P1: 'bg-red-100 text-red-700 border-red-300',
   P2: 'bg-orange-100 text-orange-700 border-orange-300',
@@ -428,19 +550,13 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                 <input type="text" value={form.title} onChange={(e) => set('title', e.target.value)} className={inputCls} placeholder="任务标题" />
               </Field>
               <Field label="父任務">
-                <select
-                  value={form.parent_id || ''}
-                  onChange={(e) => set('parent_id', e.target.value ? Number(e.target.value) : null)}
-                  className={inputCls}
-                >
-                  <option value="">— 無（頂層任務）—</option>
-                  {tasks
-                    .filter((t) => t.id !== task.id && !descendantIds.has(t.id))
-                    .map((t) => (
-                      <option key={t.id} value={t.id}>{t.title}</option>
-                    ))
-                  }
-                </select>
+                <TaskSearchSelect
+                  tasks={tasks}
+                  value={form.parent_id}
+                  onChange={(id) => set('parent_id', id)}
+                  placeholder="搜尋父任務..."
+                  excludeIds={new Set([task.id, ...descendantIds])}
+                />
               </Field>
               <Field label="描述">
                 <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} className={`${inputCls} resize-none`} placeholder="详细描述（可选）" />
@@ -626,23 +742,11 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                       ))}
                     </div>
                   )}
-                  <select
-                    value=""
-                    onChange={e => { if (e.target.value) addBlocker(Number(e.target.value)) }}
-                    className={inputCls}
-                  >
-                    <option value="">＋ 添加前置任務...</option>
-                    {tasks
-                      .filter(t =>
-                        t.id !== task.id &&
-                        !descendantIds.has(t.id) &&
-                        !localBlockers.find(b => b.id === t.id)
-                      )
-                      .map(t => (
-                        <option key={t.id} value={t.id}>{t.title}</option>
-                      ))
-                    }
-                  </select>
+                  <BlockerSearchInput
+                    tasks={tasks}
+                    excludeIds={new Set([task.id, ...descendantIds, ...localBlockers.map(b => b.id)])}
+                    onAdd={addBlocker}
+                  />
                 </div>
               </Field>
 
