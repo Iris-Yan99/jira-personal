@@ -2,6 +2,17 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+function checkAssigneePermission(req, res, assignee) {
+  if (assignee === undefined || assignee === '' || assignee === null) return true; // skip
+  if (req.session.userRole !== 'member') return true; // PM: always ok
+  const me = db.prepare('SELECT display_name FROM users WHERE id = ?').get(req.session.userId);
+  if (!me || assignee !== me.display_name) {
+    res.status(403).json({ error: '只能指派給自己' });
+    return false;
+  }
+  return true;
+}
+
 router.get('/', (req, res) => {
   const tasks = db.prepare(`
     SELECT t.*,
@@ -57,6 +68,7 @@ router.get('/:id', (req, res) => {
 
 router.post('/', (req, res) => {
   const { title, description, deadline, estimated_hours, importance, status, tags, parent_id, progress_percent, assignee, progress_note, coordination_note, task_type, unplanned } = req.body;
+  if (!checkAssigneePermission(req, res, assignee)) return;
   const resolvedStatus = status || 'todo';
   const result = db.prepare(`
     INSERT INTO tasks (title, description, deadline, estimated_hours, importance, status, tags, parent_id, progress_percent, assignee, progress_note, coordination_note, task_type, unplanned, completed_at)
@@ -84,6 +96,9 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
   const { title, description, deadline, estimated_hours, importance, status, priority_score, priority_level, tags, parent_id, progress_percent, clear_parent, assignee, progress_note, coordination_note, task_type, unplanned, completed_at } = req.body;
+
+  if (!checkAssigneePermission(req, res, assignee)) return;
+
   db.prepare(`
     UPDATE tasks SET
       title = COALESCE(?, title),
