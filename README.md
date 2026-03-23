@@ -4,6 +4,39 @@
 
 ---
 
+## 🪟 Windows 快速安裝教程（給非開發者）
+
+### 第一步：安裝 Docker Desktop
+1. 打開瀏覽器，訪問 https://www.docker.com/products/docker-desktop/
+2. 點擊 "Download for Windows" 下載安裝包
+3. 雙擊安裝，一路點「Next」
+4. 安裝完成後重啟電腦
+5. 重啟後打開 Docker Desktop，等待它完全啟動（任務欄出現鯨魚圖標）
+
+### 第二步：下載 Plano
+1. 打開瀏覽器，訪問 https://github.com/Iris-Yan99/jira-personal
+2. 點擊綠色 "Code" 按鈕 → "Download ZIP"
+3. 解壓到桌面
+
+### 第三步：啟動應用
+1. 打開「開始菜單」搜索 "PowerShell"，右鍵「以管理員身份運行」
+2. 輸入以下指令（複製貼上）：
+   ```
+   cd Desktop\jira-personal
+   docker compose up -d --build
+   ```
+3. 等待約 5-10 分鐘（首次需要下載 AI 模型，約 5GB）
+4. 看到 "Started" 後，打開瀏覽器訪問 http://localhost:3001
+
+### 常見問題
+- **Docker 沒啟動？** 確認任務欄有鯨魚圖標，且狀態是 "Running"
+- **頁面打不開？** 等多幾分鐘，AI 模型還在下載中
+- **想關閉應用？** 在 PowerShell 輸入 `docker compose down`
+
+> 💡 之後每次使用，只需打開 Docker Desktop，再輸入 `docker compose up -d` 即可
+
+---
+
 ## 启动方式
 
 ### 方式一：Docker 一键部署（推荐）
