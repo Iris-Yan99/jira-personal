@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { api } from '../utils/api'
 import { detectConflicts } from '../utils/conflicts'
 import { buildTree, getDescendantIds } from '../utils/taskTree'
+import { useAuth } from '../context/AuthContext'
 
 const PRIORITY_COLORS = {
   P1: 'bg-red-100 text-red-700 border-red-300',
@@ -35,6 +36,7 @@ const localDateStr = () => {
 }
 
 export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDelete }) {
+  const { currentUser } = useAuth()
   const [activeTab, setActiveTab] = useState('info')
 
   // ── Info tab state ──────────────────────────────────────────
@@ -552,17 +554,35 @@ export default function TaskEditModal({ task, tasks = [], onClose, onSave, onDel
                 <input type="text" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="开发, 会议, 文档" className={inputCls} />
               </Field>
               <Field label="负责人">
-                <input
-                  type="text"
-                  list="members-list"
-                  value={form.assignee}
-                  onChange={(e) => set('assignee', e.target.value)}
-                  placeholder="输入或选择成员"
-                  className={inputCls}
-                />
-                <datalist id="members-list">
-                  {members.map((m) => <option key={m.id} value={m.name} />)}
-                </datalist>
+                {currentUser?.role === 'member' ? (
+                  <>
+                    {task.assignee && task.assignee !== currentUser?.display_name && (
+                      <p className="text-xs text-gray-400 mb-1">目前由 {task.assignee} 負責</p>
+                    )}
+                    <select
+                      value={form.assignee === currentUser?.display_name ? currentUser.display_name : ''}
+                      onChange={(e) => set('assignee', e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">無人負責</option>
+                      <option value={currentUser.display_name}>{currentUser.display_name}（我）</option>
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      list="members-list"
+                      value={form.assignee}
+                      onChange={(e) => set('assignee', e.target.value)}
+                      placeholder="输入或选择成员"
+                      className={inputCls}
+                    />
+                    <datalist id="members-list">
+                      {members.map((m) => <option key={m.id} value={m.name} />)}
+                    </datalist>
+                  </>
+                )}
               </Field>
               {(childrenMap[task.id] || []).length === 0 && (
                 <Field label={`进度 (${form.progress_percent}%)`}>
