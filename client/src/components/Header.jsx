@@ -56,6 +56,7 @@ export default function Header({ activeTab, setActiveTab, onMorning, onEvening, 
         </button>
         <button
           onClick={onEvening}
+          title="記錄今日任務進度 → 自動更新任務狀態 → AI 生成日報歸檔"
           className="px-3 py-1.5 text-sm font-medium bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors"
         >
           🌙 晚间复盘

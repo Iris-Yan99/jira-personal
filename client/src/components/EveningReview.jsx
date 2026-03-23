@@ -94,7 +94,10 @@ export default function EveningReview({ tasks, onClose, onComplete }) {
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-xl">🌙</span>
-            <h2 className="font-semibold text-gray-800">晚间复盘</h2>
+            <div>
+              <h2 className="font-semibold text-gray-800">晚间复盘</h2>
+              <p className="text-xs text-gray-400 mt-0.5">填寫今日進度 → 自動更新任務狀態 → AI 生成日報歸檔</p>
+            </div>
           </div>
           {step !== 'loading' && (
             <button
