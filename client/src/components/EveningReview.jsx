@@ -2,9 +2,25 @@ import { useState } from 'react'
 import { api } from '../utils/api'
 import ReportContent from './ReportContent'
 
+function getTaskReason(task, todayStr, eowStr) {
+  if (task.status === 'in_progress') return { label: '進行中', color: 'bg-blue-50 text-blue-600' }
+  if (task.deadline && task.deadline <= todayStr) return { label: '今日 DDL', color: 'bg-red-50 text-red-600' }
+  if ((task.priority_level === 'P1' || task.priority_level === 'P2') && task.deadline && task.deadline <= eowStr)
+    return { label: `${task.priority_level} 本週到期`, color: 'bg-orange-50 text-orange-600' }
+  return { label: '已加入', color: 'bg-gray-50 text-gray-500' }
+}
+
 export default function EveningReview({ tasks, onClose, onComplete }) {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const pad = (n) => String(n).padStart(2, '0')
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  const eow = new Date(now)
+  eow.setDate(eow.getDate() + (7 - (eow.getDay() || 7)))
+  const eowStr = `${eow.getFullYear()}-${pad(eow.getMonth() + 1)}-${pad(eow.getDate())}`
+
   const [logs, setLogs] = useState(
-    tasks.map((task) => ({ task_id: task.id, task, progress_percent: 0, note: '', problem: '' }))
+    tasks.map((task) => ({ task_id: task.id, task, progress_percent: task.progress_percent ?? 0, note: '', problem: '' }))
   )
   const [step, setStep] = useState('input') // 'input' | 'loading' | 'done'
   const [report, setReport] = useState('')
@@ -123,11 +139,18 @@ export default function EveningReview({ tasks, onClose, onComplete }) {
               {logs.length === 0 ? (
                 <div className="text-center text-gray-400 py-12">今日暂无进行中的任务</div>
               ) : (
-                logs.map((log, i) => (
+                logs.map((log, i) => {
+                  const reason = getTaskReason(log.task, todayStr, eowStr)
+                  return (
                   <div key={log.task_id} className="border border-gray-200 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-gray-800 text-sm">{log.task.title}</h3>
-                      <span className={`text-sm font-bold ${log.progress_percent >= 100 ? 'text-green-600' : 'text-blue-600'}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${reason.color}`}>
+                          {reason.label}
+                        </span>
+                        <h3 className="font-medium text-gray-800 text-sm truncate">{log.task.title}</h3>
+                      </div>
+                      <span className={`text-sm font-bold flex-shrink-0 ${log.progress_percent >= 100 ? 'text-green-600' : 'text-blue-600'}`}>
                         {log.progress_percent}%
                       </span>
                     </div>
@@ -164,7 +187,7 @@ export default function EveningReview({ tasks, onClose, onComplete }) {
                       className="w-full px-3 py-2 text-sm border border-orange-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-orange-50/40 focus:bg-white"
                     />
                   </div>
-                ))
+                )})
               )}
             </div>
           )}
