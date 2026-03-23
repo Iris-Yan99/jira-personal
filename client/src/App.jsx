@@ -112,9 +112,18 @@ export default function App() {
     })
   })()
 
+  // Hide done tasks completed more than 3 months ago (frontend-only filter)
+  const threeMonthsAgo = new Date()
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+  const activeTasks = tasks.filter((t) => {
+    if (t.status !== 'done') return true
+    if (!t.completed_at) return true
+    return new Date(t.completed_at) >= threeMonthsAgo
+  })
+
   const visibleTasks = currentUser?.role === 'member'
-    ? tasks.filter((t) => t.assignee === currentUser.display_name)
-    : tasks
+    ? activeTasks.filter((t) => t.assignee === currentUser.display_name)
+    : activeTasks
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
