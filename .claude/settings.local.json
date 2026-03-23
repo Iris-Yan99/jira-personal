@@ -21,7 +21,8 @@
       "Bash(cd /Users/iris/Desktop/jira-personal/client && npx vite build 2>&1 | tail -12)",
       "Bash(cd /Users/iris/Desktop/jira-personal/client && npx vite build 2>&1 | tail -8)",
       "Bash(cd /Users/iris/Desktop/jira-personal/client && npx vite build 2>&1 | tail -30)",
-      "Skill(general)"
+      "Skill(general)",
+      "Bash(scripts/start-server.sh --project-dir /Users/iris/Desktop/jira-personal 2>&1)"
     ]
   }
 }
