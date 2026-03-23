@@ -32,9 +32,11 @@ export function buildTree(tasks) {
  * @returns {number} 0-100
  */
 export function calcProgress(taskId, childrenMap, tasksById) {
+  const task = tasksById[taskId];
+  if (task?.status === 'done') return 100;
   const children = childrenMap[taskId];
   if (!children || children.length === 0) {
-    return tasksById[taskId]?.progress_percent ?? 0;
+    return task?.progress_percent ?? 0;
   }
   const doneCount = children.filter((c) => c.status === 'done').length;
   return Math.round((doneCount / children.length) * 100);
